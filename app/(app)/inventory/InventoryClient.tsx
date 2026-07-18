@@ -27,6 +27,53 @@ export default function InventoryClient({
     Object.fromEntries(inventory.map((i) => [i.crop_id, i.low_stock_threshold_trays?.toString() ?? ""]))
   );
   const [adjustingCropId, setAdjustingCropId] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+
+  async function exportMovementsCsv() {
+    if (DEMO_MODE) return;
+    setExporting(true);
+    try {
+      const { data, error } = await supabase
+        .from("inventory_movements")
+        .select("created_at, kind, delta, reason, source_table, crops(name)")
+        .eq("org_id", orgId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+
+      const rows = (data ?? []) as unknown as {
+        created_at: string; kind: string; delta: number; reason: string | null;
+        source_table: string | null; crops: { name: string } | null;
+      }[];
+
+      const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
+      const header = ["Date", "Crop", "Kind", "Delta", "Reason", "Source"];
+      const lines = [
+        header.join(","),
+        ...rows.map((r) =>
+          [
+            escape(new Date(r.created_at).toLocaleString()),
+            escape(r.crops?.name ?? ""),
+            escape(r.kind),
+            String(r.delta),
+            escape(r.reason ?? ""),
+            escape(r.source_table ?? "adjustment"),
+          ].join(",")
+        ),
+      ];
+
+      const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `inventory-movements-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+    }
+  }
 
   async function saveThreshold(cropId: string) {
     if (DEMO_MODE) return;
@@ -41,7 +88,13 @@ export default function InventoryClient({
   }
 
   return (
-    <div className="card overflow-x-auto">
+    <div className="space-y-3">
+      <div className="flex justify-end">
+        <button className="btn-secondary !py-1.5 text-sm" onClick={exportMovementsCsv} disabled={exporting}>
+          {exporting ? "Exporting…" : "Export movements CSV"}
+        </button>
+      </div>
+      <div className="card overflow-x-auto">
       <table className="w-full text-sm">
         <thead className="bg-stone-50 text-xs text-stone-500 uppercase tracking-wide">
           <tr>
@@ -115,6 +168,7 @@ export default function InventoryClient({
           })}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

@@ -293,7 +293,7 @@ export default function SettingsClient({
         <div className="card p-5">
           <h2 className="font-semibold text-stone-800 mb-1">Invite someone</h2>
           <p className="text-xs text-stone-500 mb-4">
-            Give Victoria (or anyone else) access with less control than you have. They'll be added automatically
+            Give a team member access with less control than you have. They'll be added automatically
             the moment they sign up or log in with the email below — no email service required on our end.
           </p>
           <form onSubmit={sendInvite} className="grid sm:grid-cols-[1fr_auto_auto] gap-2 items-start">
