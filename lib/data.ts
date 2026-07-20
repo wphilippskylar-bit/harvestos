@@ -146,6 +146,32 @@ export async function getFieldCropCrops(orgId: string) {
   return data ?? [];
 }
 
+export async function getAnimals(orgId: string) {
+  if (DEMO_MODE) return [];
+  const supabase = createClient();
+  const [{ data: animals }, { data: statuses }] = await Promise.all([
+    supabase.from("animals").select("*").eq("org_id", orgId).order("ear_tag_number"),
+    supabase.from("animal_status").select("*").eq("org_id", orgId),
+  ]);
+  const statusMap = new Map((statuses ?? []).map((s) => [s.animal_id, s]));
+  return (animals ?? []).map((a) => ({
+    ...a,
+    restricted: statusMap.get(a.id)?.restricted ?? false,
+    restricted_until: statusMap.get(a.id)?.restricted_until ?? null,
+  }));
+}
+
+export async function getAnimalHealthLogs(animalId: string) {
+  if (DEMO_MODE) return [];
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("animal_health_logs")
+    .select("*")
+    .eq("animal_id", animalId)
+    .order("log_date", { ascending: false });
+  return data ?? [];
+}
+
 export async function getPendingInvites(orgId: string) {
   if (DEMO_MODE) return [];
   const supabase = createClient();

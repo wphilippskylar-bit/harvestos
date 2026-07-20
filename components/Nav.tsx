@@ -10,6 +10,7 @@ const BASE_NAV = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/batches", label: "Batches", requires: "microgreens" },
   { href: "/fields", label: "Fields", requires: "field_crop" },
+  { href: "/livestock", label: "Livestock", requires: "livestock" },
   { href: "/inventory", label: "Inventory" },
   { href: "/purchases", label: "Purchases" },
   { href: "/sales", label: "Sales" },

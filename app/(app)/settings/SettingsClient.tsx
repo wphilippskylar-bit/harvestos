@@ -189,6 +189,7 @@ export default function SettingsClient({
           {[
             { key: "microgreens", label: "Microgreens / indoor trays (Batches)" },
             { key: "field_crop", label: "Field, high tunnel, or commercial crops (Fields)" },
+            { key: "livestock", label: "Livestock / ranching (Livestock)" },
           ].map((opt) => {
             const on = operationTypes.includes(opt.key);
             return (
@@ -207,7 +208,8 @@ export default function SettingsClient({
           })}
         </div>
         <p className="text-xs text-stone-400 mt-3">
-          Livestock/ranching tracking and cannabis-specific grow tracking are on the roadmap but not built yet.
+          Cannabis-specific compliance/track-and-trace tracking is on the roadmap but not built yet — any
+          crop can already be tracked via Batches or Fields today.
         </p>
       </div>
 

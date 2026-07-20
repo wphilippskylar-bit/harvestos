@@ -51,8 +51,9 @@ connect them yourself. Here's the whole path, roughly 15 minutes:
 3. Repeat for `0002_seed_demo.sql`, then `0003_invites.sql`, then `0004_org_members_rpc.sql`, then
    `0005_explicit_grants.sql`, then `0006_create_org_rpc.sql`, then `0007_crop_seed_cost_and_add.sql`,
    then `0008_inventory_and_batches.sql`, then `0009_inventory_edit_permissions.sql`, then
-   `0010_push_and_harvest_photos.sql`, then `0011_field_crops.sql` — **in that exact order**, each
-   as its own run. (They build on each other; running out of order will error.)
+   `0010_push_and_harvest_photos.sql`, then `0011_field_crops.sql`, then `0012_livestock.sql` —
+   **in that exact order**, each as its own run. (They build on each other; running out of order
+   will error.)
 4. If a run errors, read the message — it's almost always "already exists" from re-running a step
    twice, which is safe to ignore, or a typo from copy/paste truncation. Re-copy the full file if
    unsure.
@@ -162,7 +163,7 @@ want the app installed for now):
    working the next time the cron fires after you've completed steps 1–4. (Vercel's free Hobby tier
    allows one run per day for a given cron job, which is exactly the cadence this uses.)
 
-## Giving Victoria (or anyone else) access
+## Giving a team member access
 
 Once you're signed in, go to **Settings**. Under "Invite someone," enter their email and pick a
 role — **Member** if they should log batches/sales/purchases, **Viewer** if they should only look,
@@ -242,8 +243,24 @@ it just leaves the menu).
   the Crop Library page, and marking which crops are used for field crops vs. microgreens (a crop
   can be both).
 
-Livestock/ranching tracking and cannabis-specific compliance features are on the roadmap but not
-built yet — see the project's platform-expansion concept doc for the fuller plan.
+Cannabis-specific compliance/track-and-trace features are on the roadmap but not built yet — see
+the project's platform-expansion concept doc for the fuller plan.
+
+## Livestock — animal records, health log, and withdrawal-period tracking
+
+Turn it on in **Settings → "What do you grow or raise?"** — this adds a **Livestock** item to the
+menu.
+
+- **Animals**: ear tag number (unique per farm), breed, birth date, and optional sire/dam links to
+  other animal records for basic lineage tracking.
+- **Health log**: a dated entry per animal — vaccine, medication, illness, injury, or other — with
+  an optional withdrawal period in days (how long before it's safe to sell or milk that animal).
+- **Withdrawal status**: each animal shows a green "Clear" or red "Restricted until <date>" badge,
+  computed automatically from its health log — no manual tracking, no push notifications yet (a
+  fast-follow, not a blocker for this first version).
+
+Feed/nutrition logging, a crop/livestock home-page toggle, and cannabis-specific compliance
+features are still on the roadmap — see the project's platform-expansion concept doc.
 
 ## About the future paid tiers
 
