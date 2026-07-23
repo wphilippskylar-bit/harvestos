@@ -6,6 +6,7 @@ import { DEMO_MODE } from "@/lib/demo-mode";
 import { EmptyState } from "@/components/ui";
 import AnimalForm from "@/components/forms/AnimalForm";
 import HealthLogForm from "@/components/forms/HealthLogForm";
+import GrazingForm from "@/components/forms/GrazingForm";
 
 type Animal = {
   id: string;
@@ -27,15 +28,33 @@ type HealthLog = {
   withdrawal_end_date: string | null;
 };
 
+type FieldRow = { id: string; label: string };
+type Field = { id: string; name: string; field_rows: FieldRow[] };
+type GrazingEvent = {
+  id: string;
+  field_id: string;
+  row_id: string | null;
+  start_date: string;
+  end_date: string | null;
+  animal_notes: string | null;
+};
+
 export default function LivestockClient({
-  orgId, role, animals,
-}: { orgId: string; role: string; animals: Animal[] }) {
+  orgId, role, animals, fields, grazingEvents,
+}: {
+  orgId: string;
+  role: string;
+  animals: Animal[];
+  fields?: Field[];
+  grazingEvents?: GrazingEvent[];
+}) {
   const supabase = createClient();
   const isEditor = role === "owner" || role === "admin" || role === "member";
   const [showAnimalForm, setShowAnimalForm] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [logs, setLogs] = useState<Record<string, HealthLog[]>>({});
   const [showLogForm, setShowLogForm] = useState<string | null>(null);
+  const [showGrazingForm, setShowGrazingForm] = useState(false);
 
   async function loadLogs(animalId: string) {
     if (DEMO_MODE) { setLogs((l) => ({ ...l, [animalId]: [] })); return; }
@@ -59,6 +78,51 @@ export default function LivestockClient({
     loadLogs(animalId);
   }
 
+  const fieldName = (id: string) => fields?.find((f) => f.id === id)?.name ?? "Unknown field";
+  const rowLabel = (fieldId: string, rowId: string | null) =>
+    rowId ? fields?.find((f) => f.id === fieldId)?.field_rows.find((r) => r.id === rowId)?.label ?? null : null;
+
+  const grazingSection = (
+    <div className="card overflow-hidden">
+      <div className="px-5 py-4 border-b border-stone-100 flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold text-stone-800">Grazing / pasture rotation</h3>
+          <p className="text-xs text-stone-400 mt-0.5">
+            Log which pasture the herd's on so Harvest OS can warn you before regrazing too soon.
+          </p>
+        </div>
+        {isEditor && !showGrazingForm && (
+          <button className="btn-primary !py-1.5 !px-3 text-xs" onClick={() => setShowGrazingForm(true)}>
+            + Log move
+          </button>
+        )}
+      </div>
+      {showGrazingForm && (
+        <div className="px-5 pt-3">
+          <GrazingForm orgId={orgId} fields={fields ?? []} onDone={() => setShowGrazingForm(false)} />
+        </div>
+      )}
+      <div className="px-5 py-3">
+        {!grazingEvents || grazingEvents.length === 0 ? (
+          <p className="text-xs text-stone-400">No grazing history logged yet.</p>
+        ) : (
+          <div className="divide-y divide-stone-100">
+            {grazingEvents.map((g) => (
+              <div key={g.id} className="py-2 text-sm text-stone-600">
+                <span className="font-medium text-stone-700">{fieldName(g.field_id)}</span>
+                {rowLabel(g.field_id, g.row_id) && <span> · {rowLabel(g.field_id, g.row_id)}</span>}
+                {" — "}
+                {g.start_date}
+                {g.end_date ? ` to ${g.end_date}` : " (ongoing)"}
+                {g.animal_notes && <div className="text-xs text-stone-400 mt-0.5">{g.animal_notes}</div>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   if (animals.length === 0 && !showAnimalForm) {
     return (
       <div className="space-y-4">
@@ -71,6 +135,7 @@ export default function LivestockClient({
             <button className="btn-primary" onClick={() => setShowAnimalForm(true)}>Add your first animal</button>
           </div>
         )}
+        {grazingSection}
       </div>
     );
   }
@@ -153,6 +218,8 @@ export default function LivestockClient({
           </div>
         );
       })}
+
+      {grazingSection}
     </div>
   );
 }

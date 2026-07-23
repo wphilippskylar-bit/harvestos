@@ -172,6 +172,21 @@ export async function getAnimalHealthLogs(animalId: string) {
   return data ?? [];
 }
 
+export async function getGrazingOverview(orgId: string) {
+  if (DEMO_MODE) return { fields: [], events: [] };
+  const supabase = createClient();
+  const [{ data: fields }, { data: events }] = await Promise.all([
+    supabase.from("fields").select("id, name, field_rows(id, label)").eq("org_id", orgId).order("name"),
+    supabase
+      .from("grazing_events")
+      .select("*")
+      .eq("org_id", orgId)
+      .order("start_date", { ascending: false })
+      .limit(50),
+  ]);
+  return { fields: fields ?? [], events: events ?? [] };
+}
+
 export async function getPendingInvites(orgId: string) {
   if (DEMO_MODE) return [];
   const supabase = createClient();

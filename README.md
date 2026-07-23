@@ -51,9 +51,9 @@ connect them yourself. Here's the whole path, roughly 15 minutes:
 3. Repeat for `0002_seed_demo.sql`, then `0003_invites.sql`, then `0004_org_members_rpc.sql`, then
    `0005_explicit_grants.sql`, then `0006_create_org_rpc.sql`, then `0007_crop_seed_cost_and_add.sql`,
    then `0008_inventory_and_batches.sql`, then `0009_inventory_edit_permissions.sql`, then
-   `0010_push_and_harvest_photos.sql`, then `0011_field_crops.sql`, then `0012_livestock.sql` —
-   **in that exact order**, each as its own run. (They build on each other; running out of order
-   will error.)
+   `0010_push_and_harvest_photos.sql`, then `0011_field_crops.sql`, then `0012_livestock.sql`, then
+   `0013_grazing.sql` — **in that exact order**, each as its own run. (They build on each other;
+   running out of order will error.)
 4. If a run errors, read the message — it's almost always "already exists" from re-running a step
    twice, which is safe to ignore, or a typo from copy/paste truncation. Re-copy the full file if
    unsure.
@@ -261,6 +261,21 @@ menu.
 
 Feed/nutrition logging, a crop/livestock home-page toggle, and cannabis-specific compliance
 features are still on the roadmap — see the project's platform-expansion concept doc.
+
+## Grazing — rotational pasture planning
+
+Also lives on the Livestock page, below your animal list, once Livestock is turned on. This is a
+feature no crop-only or livestock-only competitor product can offer, since it needs both Fields and
+Animals in the same system — you have both.
+
+- **Log a grazing move**: pick a field/pasture (and row/section if you use those), a start date, and
+  optionally an end date and a note on which animals — same "log it and move on" style as
+  everything else in the app.
+- **Rest warning**: before saving, Harvest OS checks whether that field/row was grazed too recently
+  (default 25 days, in line with typical 21–40+ day rotational-grazing rest windows) and shows a
+  dismissible warning if so — informing, not blocking, exactly like the crop-rotation warning on
+  Fields.
+- **History**: the Livestock page shows your last 50 grazing entries, most recent first.
 
 ## About the future paid tiers
 
