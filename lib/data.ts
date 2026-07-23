@@ -172,6 +172,30 @@ export async function getAnimalHealthLogs(animalId: string) {
   return data ?? [];
 }
 
+export async function isPlatformAdmin() {
+  if (DEMO_MODE) return false;
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("is_platform_admin");
+  if (error) return false;
+  return !!data;
+}
+
+export async function getPlatformAggregateStats() {
+  if (DEMO_MODE) return null;
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("platform_aggregate_stats");
+  if (error || !data || data.length === 0) return null;
+  return data[0];
+}
+
+export async function getPlatformOrgRoster() {
+  if (DEMO_MODE) return [];
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("platform_org_roster");
+  if (error) return [];
+  return data ?? [];
+}
+
 export async function getGrazingOverview(orgId: string) {
   if (DEMO_MODE) return { fields: [], events: [] };
   const supabase = createClient();

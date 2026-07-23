@@ -52,8 +52,8 @@ connect them yourself. Here's the whole path, roughly 15 minutes:
    `0005_explicit_grants.sql`, then `0006_create_org_rpc.sql`, then `0007_crop_seed_cost_and_add.sql`,
    then `0008_inventory_and_batches.sql`, then `0009_inventory_edit_permissions.sql`, then
    `0010_push_and_harvest_photos.sql`, then `0011_field_crops.sql`, then `0012_livestock.sql`, then
-   `0013_grazing.sql` — **in that exact order**, each as its own run. (They build on each other;
-   running out of order will error.)
+   `0013_grazing.sql`, then `0014_platform_admin.sql` — **in that exact order**, each as its own
+   run. (They build on each other; running out of order will error.)
 4. If a run errors, read the message — it's almost always "already exists" from re-running a step
    twice, which is safe to ignore, or a typo from copy/paste truncation. Re-copy the full file if
    unsure.
@@ -276,6 +276,36 @@ Animals in the same system — you have both.
   dismissible warning if so — informing, not blocking, exactly like the crop-rotation warning on
   Fields.
 - **History**: the Livestock page shows your last 50 grazing entries, most recent first.
+
+## Platform overview — aggregate stats for institutional pitches
+
+A `/admin` page shows counts across every farm on Harvest OS — total farms, how many use each
+module, total acres/animals/plantings/batches tracked — with **no financial data and no
+individual-farm breakdown**, just anonymized totals. This is the view to show OSU Extension, the
+Chickasaw Nation, or USDA when the pitch is "here's the reach and impact of the platform," as
+opposed to any one farm's private numbers.
+
+**Getting access**: this is deliberately not something anyone can grant themselves in the app — you
+add yourself once via SQL Editor:
+```sql
+insert into platform_admins (user_id)
+select id from auth.users where email = 'your-login-email@example.com';
+```
+Then visit `/admin` while logged in with that account. There's no nav link to it yet (kept
+intentionally low-key since it's an internal tool, not a farmer-facing feature) — just go to the
+URL directly.
+
+**Creating a test/demo account for an outside reviewer**: sign up for a brand-new account in the
+live app (private/incognito browser window, any email) — that creates a fresh, empty org exactly
+like any new farm would get. Then in Supabase SQL Editor, find that org's id and run:
+```sql
+select seed_demo_org('paste-the-new-orgs-id-here');
+```
+This fills that one org with generic sample data across every module (a demo crop, field, planting,
+two animals with a health-log entry showing a live withdrawal period, a grazing entry, a batch, a
+purchase, and a sales channel) — deliberately **not** your real ACF business data, so it's safe to
+hand the login credentials to an outside reviewer (another AI, a partner, anyone) without exposing
+anything proprietary. Share the live app URL plus that test account's email/password.
 
 ## About the future paid tiers
 
