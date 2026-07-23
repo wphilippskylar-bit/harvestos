@@ -196,6 +196,24 @@ export async function getPlatformOrgRoster() {
   return data ?? [];
 }
 
+export async function getProfitability(orgId: string) {
+  if (DEMO_MODE) return { cropMargin: [], fieldMargin: [], animalMargin: [], monthlyPnl: [] };
+  const supabase = createClient();
+  const [{ data: cropMargin }, { data: fieldMargin }, { data: animalMargin }, { data: monthlyPnl }] =
+    await Promise.all([
+      supabase.from("crop_margin").select("*").eq("org_id", orgId).order("crop_name"),
+      supabase.from("field_margin").select("*").eq("org_id", orgId).order("field_name"),
+      supabase.from("animal_margin").select("*").eq("org_id", orgId).order("ear_tag_number"),
+      supabase.from("monthly_pnl").select("*").eq("org_id", orgId).order("month", { ascending: false }).limit(12),
+    ]);
+  return {
+    cropMargin: cropMargin ?? [],
+    fieldMargin: fieldMargin ?? [],
+    animalMargin: animalMargin ?? [],
+    monthlyPnl: monthlyPnl ?? [],
+  };
+}
+
 export async function getGrazingOverview(orgId: string) {
   if (DEMO_MODE) return { fields: [], events: [] };
   const supabase = createClient();

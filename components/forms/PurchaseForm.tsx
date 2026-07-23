@@ -4,12 +4,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
+import { errorMessage } from "@/lib/errors";
 
 const CATEGORIES = ["Seeds", "Trays", "Medium", "Equipment", "Supplies", "Packaging", "Rent", "Utilities", "Insurance", "Marketing", "Other"];
 
 type Crop = { id: string; name: string };
+type Field = { id: string; name: string };
 
-export default function PurchaseForm({ orgId, crops, onDone }: { orgId: string; crops: Crop[]; onDone: () => void }) {
+export default function PurchaseForm({ orgId, crops, fields = [], onDone }: { orgId: string; crops: Crop[]; fields?: Field[]; onDone: () => void }) {
   const supabase = createClient();
   const router = useRouter();
   const [mode, setMode] = useState<"general" | "seed">("general");
@@ -23,6 +25,7 @@ export default function PurchaseForm({ orgId, crops, onDone }: { orgId: string; 
   const [shipping, setShipping] = useState("");
   const [cropId, setCropId] = useState(crops[0]?.id ?? "");
   const [seedWeightG, setSeedWeightG] = useState("");
+  const [fieldId, setFieldId] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,18 +56,13 @@ export default function PurchaseForm({ orgId, crops, onDone }: { orgId: string; 
         shipping: Number(shipping) || 0,
         crop_id: mode === "seed" ? cropId || null : null,
         seed_weight_g: mode === "seed" && seedWeightG ? Number(seedWeightG) : null,
+        field_id: fieldId || null,
       });
       if (error) throw error;
       onDone();
       router.refresh();
     } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : err && typeof err === "object" && "message" in err
-          ? String((err as { message: unknown }).message)
-          : "Could not save purchase";
-      setError(message);
+      setError(errorMessage(err, "Could not save purchase"));
     } finally {
       setSaving(false);
     }
@@ -153,6 +151,16 @@ export default function PurchaseForm({ orgId, crops, onDone }: { orgId: string; 
           <label className="label">Shipping ($)</label>
           <input className="input" type="number" step="0.01" value={shipping} onChange={(e) => setShipping(e.target.value)} />
         </div>
+        {fields.length > 0 && (
+          <div>
+            <label className="label">Field (optional)</label>
+            <select className="input" value={fieldId} onChange={(e) => setFieldId(e.target.value)}>
+              <option value="">— not tied to a field —</option>
+              {fields.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+            </select>
+            <p className="text-xs text-stone-400 mt-1">Attributes this cost to that field's profitability.</p>
+          </div>
+        )}
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex gap-2 justify-end">

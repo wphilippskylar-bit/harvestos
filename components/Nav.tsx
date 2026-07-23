@@ -14,6 +14,7 @@ const BASE_NAV = [
   { href: "/inventory", label: "Inventory" },
   { href: "/purchases", label: "Purchases" },
   { href: "/sales", label: "Sales" },
+  { href: "/profitability", label: "Profitability" },
   { href: "/channels", label: "Sales Channels" },
   { href: "/crops", label: "Crop Library" },
   { href: "/environmental", label: "Environment Log" },

@@ -4,17 +4,30 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
+import { errorMessage } from "@/lib/errors";
 
 const UNITS = ["tray", "oz", "clamshell", "lb", "live_tray"];
 
+type Field = { id: string; name: string };
+type Animal = { id: string; ear_tag_number: string };
+
 export default function SaleForm({
-  orgId, channels, crops, onDone,
-}: { orgId: string; channels: { id: string; name: string }[]; crops: { id: string; name: string }[]; onDone: () => void }) {
+  orgId, channels, crops, fields = [], animals = [], onDone,
+}: {
+  orgId: string;
+  channels: { id: string; name: string }[];
+  crops: { id: string; name: string }[];
+  fields?: Field[];
+  animals?: Animal[];
+  onDone: () => void;
+}) {
   const supabase = createClient();
   const router = useRouter();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [channelId, setChannelId] = useState(channels[0]?.id ?? "");
   const [cropId, setCropId] = useState(crops[0]?.id ?? "");
+  const [fieldId, setFieldId] = useState("");
+  const [animalId, setAnimalId] = useState("");
   const [unit, setUnit] = useState("clamshell");
   const [quantity, setQuantity] = useState("");
   const [unitPrice, setUnitPrice] = useState("");
@@ -33,6 +46,8 @@ export default function SaleForm({
         sale_date: date,
         channel_id: channelId || null,
         crop_id: cropId || null,
+        field_id: fieldId || null,
+        animal_id: animalId || null,
         unit,
         quantity: Number(quantity) || 0,
         unit_price: Number(unitPrice) || 0,
@@ -42,13 +57,7 @@ export default function SaleForm({
       onDone();
       router.refresh();
     } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : err && typeof err === "object" && "message" in err
-          ? String((err as { message: unknown }).message)
-          : "Could not save sale";
-      setError(message);
+      setError(errorMessage(err, "Could not save sale"));
     } finally {
       setSaving(false);
     }
@@ -82,6 +91,26 @@ export default function SaleForm({
             {UNITS.map((u) => <option key={u} value={u}>{u.replace("_", " ")}</option>)}
           </select>
         </div>
+        {fields.length > 0 && (
+          <div>
+            <label className="label">Field (optional)</label>
+            <select className="input" value={fieldId} onChange={(e) => setFieldId(e.target.value)}>
+              <option value="">— not tied to a field —</option>
+              {fields.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+            </select>
+            <p className="text-xs text-stone-400 mt-1">Attributes this revenue to that field's profitability.</p>
+          </div>
+        )}
+        {animals.length > 0 && (
+          <div>
+            <label className="label">Animal (optional)</label>
+            <select className="input" value={animalId} onChange={(e) => setAnimalId(e.target.value)}>
+              <option value="">— not tied to an animal —</option>
+              {animals.map((a) => <option key={a.id} value={a.id}>{a.ear_tag_number}</option>)}
+            </select>
+            <p className="text-xs text-stone-400 mt-1">e.g. selling a finished animal — attributes this revenue to it.</p>
+          </div>
+        )}
         <div>
           <label className="label">Quantity</label>
           <input className="input" type="number" step="0.1" value={quantity} onChange={(e) => setQuantity(e.target.value)} required />

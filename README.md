@@ -52,8 +52,8 @@ connect them yourself. Here's the whole path, roughly 15 minutes:
    `0005_explicit_grants.sql`, then `0006_create_org_rpc.sql`, then `0007_crop_seed_cost_and_add.sql`,
    then `0008_inventory_and_batches.sql`, then `0009_inventory_edit_permissions.sql`, then
    `0010_push_and_harvest_photos.sql`, then `0011_field_crops.sql`, then `0012_livestock.sql`, then
-   `0013_grazing.sql`, then `0014_platform_admin.sql` — **in that exact order**, each as its own
-   run. (They build on each other; running out of order will error.)
+   `0013_grazing.sql`, then `0014_platform_admin.sql`, then `0015_profitability.sql` — **in that
+   exact order**, each as its own run. (They build on each other; running out of order will error.)
 4. If a run errors, read the message — it's almost always "already exists" from re-running a step
    twice, which is safe to ignore, or a typo from copy/paste truncation. Re-copy the full file if
    unsure.
@@ -306,6 +306,25 @@ two animals with a health-log entry showing a live withdrawal period, a grazing 
 purchase, and a sales channel) — deliberately **not** your real ACF business data, so it's safe to
 hand the login credentials to an outside reviewer (another AI, a partner, anyone) without exposing
 anything proprietary. Share the live app URL plus that test account's email/password.
+
+## Profitability — which crops, fields, and animals actually make money
+
+A new **Profitability** nav item rolls up your existing Purchases and Sales data into a real P&L
+view, closing the gap with Granular's headline "field-level ROI" feature — no separate spreadsheet.
+
+- **Monthly P&L**: revenue vs. costs across the whole operation, most recent months first.
+- **By crop**: batches and their linked sales, per crop (this was already computed in the database
+  since the very first migration — it just never had a page to show up on until now).
+- **By field**: only picks up purchases/sales you've explicitly tagged to a field — both the
+  Purchases and Sales forms now have an optional "Field" dropdown that shows up once you have at
+  least one field. Untagged purchases/sales don't count toward any field's numbers.
+- **By animal**: costs come from the "Cost ($)" field on Health Log entries (also new, optional —
+  log a vet bill or medication cost there), revenue comes from sales tagged to that animal (the
+  Sales form now has an optional "Animal" dropdown, for when you sell a finished animal).
+
+Nothing here is automatic — you get out what you tag in. If a purchase or sale isn't tagged to a
+field or animal, it still counts in the overall Monthly P&L and (for microgreens) the by-crop
+numbers, it just won't show up broken out by field or animal.
 
 ## About the future paid tiers
 

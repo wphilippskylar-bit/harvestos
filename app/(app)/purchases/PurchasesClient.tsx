@@ -4,7 +4,7 @@ import { useState } from "react";
 import { EmptyState, fmtCurrency2 } from "@/components/ui";
 import PurchaseForm from "@/components/forms/PurchaseForm";
 
-export default function PurchasesClient({ orgId, purchases, crops }: { orgId: string; purchases: any[]; crops: any[] }) {
+export default function PurchasesClient({ orgId, purchases, crops, fields = [] }: { orgId: string; purchases: any[]; crops: any[]; fields?: any[] }) {
   const [showForm, setShowForm] = useState(false);
   const total = purchases.reduce((a, p) => a + (p.total ?? 0), 0);
 
@@ -14,7 +14,7 @@ export default function PurchasesClient({ orgId, purchases, crops }: { orgId: st
         <div className="text-sm text-stone-500">Total spend: <span className="font-semibold text-stone-800">{fmtCurrency2(total)}</span></div>
         {!showForm && <button className="btn-primary" onClick={() => setShowForm(true)}>+ Add purchase</button>}
       </div>
-      {showForm && <PurchaseForm orgId={orgId} crops={crops} onDone={() => setShowForm(false)} />}
+      {showForm && <PurchaseForm orgId={orgId} crops={crops} fields={fields} onDone={() => setShowForm(false)} />}
 
       {purchases.length === 0 ? (
         <EmptyState title="No purchases logged yet" hint="Log seeds, trays, equipment, and supplies here to track real cost per tray." />

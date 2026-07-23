@@ -23,6 +23,7 @@ export default function HealthLogForm({
   const [treatmentType, setTreatmentType] = useState("vaccine");
   const [treatmentName, setTreatmentName] = useState("");
   const [withdrawalDays, setWithdrawalDays] = useState("");
+  const [cost, setCost] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,6 +41,7 @@ export default function HealthLogForm({
         treatment_type: treatmentType,
         treatment_name: treatmentName.trim() || null,
         withdrawal_days: withdrawalDays ? Number(withdrawalDays) : null,
+        cost: cost ? Number(cost) : null,
         notes: notes.trim() || null,
       });
       if (insertError) throw insertError;
@@ -73,6 +75,11 @@ export default function HealthLogForm({
           <label className="label">Withdrawal period (days, optional)</label>
           <input className="input" type="number" min={0} value={withdrawalDays} onChange={(e) => setWithdrawalDays(e.target.value)} placeholder="e.g. 5" />
           <p className="text-xs text-stone-400 mt-1">How many days before it's safe to sell/milk this animal.</p>
+        </div>
+        <div>
+          <label className="label">Cost ($, optional)</label>
+          <input className="input" type="number" step="0.01" min={0} value={cost} onChange={(e) => setCost(e.target.value)} placeholder="Vet visit, medication cost…" />
+          <p className="text-xs text-stone-400 mt-1">Feeds this animal's profitability on the Profitability page.</p>
         </div>
       </div>
       <div>

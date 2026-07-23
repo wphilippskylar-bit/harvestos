@@ -4,7 +4,9 @@ import { useState } from "react";
 import { EmptyState, fmtCurrency2 } from "@/components/ui";
 import SaleForm from "@/components/forms/SaleForm";
 
-export default function SalesClient({ orgId, sales, channels, crops }: { orgId: string; sales: any[]; channels: any[]; crops: any[] }) {
+export default function SalesClient({
+  orgId, sales, channels, crops, fields = [], animals = [],
+}: { orgId: string; sales: any[]; channels: any[]; crops: any[]; fields?: any[]; animals?: any[] }) {
   const [showForm, setShowForm] = useState(false);
   const total = sales.reduce((a, s) => a + (s.total_revenue ?? s.quantity * s.unit_price), 0);
   const channelMap = Object.fromEntries(channels.map((c) => [c.id, c.name]));
@@ -16,7 +18,9 @@ export default function SalesClient({ orgId, sales, channels, crops }: { orgId: 
         <div className="text-sm text-stone-500">Total revenue: <span className="font-semibold text-stone-800">{fmtCurrency2(total)}</span></div>
         {!showForm && <button className="btn-primary" onClick={() => setShowForm(true)}>+ Log sale</button>}
       </div>
-      {showForm && <SaleForm orgId={orgId} channels={channels} crops={crops} onDone={() => setShowForm(false)} />}
+      {showForm && (
+        <SaleForm orgId={orgId} channels={channels} crops={crops} fields={fields} animals={animals} onDone={() => setShowForm(false)} />
+      )}
 
       {sales.length === 0 ? (
         <EmptyState title="No sales logged yet" hint="This is the tab that matters most. Log even a $5 sample sale — it's your first real data point." />
