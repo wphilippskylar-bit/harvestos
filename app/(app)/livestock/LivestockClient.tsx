@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import { EmptyState } from "@/components/ui";
@@ -13,7 +14,10 @@ type Animal = {
   ear_tag_number: string;
   breed: string | null;
   birth_date: string | null;
+  sire_id: string | null;
+  dam_id: string | null;
   status: string;
+  notes: string | null;
   restricted: boolean;
   restricted_until: string | null;
 };
@@ -49,12 +53,21 @@ export default function LivestockClient({
   grazingEvents?: GrazingEvent[];
 }) {
   const supabase = createClient();
+  const router = useRouter();
   const isEditor = role === "owner" || role === "admin" || role === "member";
   const [showAnimalForm, setShowAnimalForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [logs, setLogs] = useState<Record<string, HealthLog[]>>({});
   const [showLogForm, setShowLogForm] = useState<string | null>(null);
   const [showGrazingForm, setShowGrazingForm] = useState(false);
+
+  async function deleteAnimal(id: string, earTag: string) {
+    if (DEMO_MODE) return;
+    if (!window.confirm(`Delete animal ${earTag}? This can't be undone — its health log entries will be deleted too.`)) return;
+    await supabase.from("animals").delete().eq("id", id);
+    router.refresh();
+  }
 
   async function loadLogs(animalId: string) {
     if (DEMO_MODE) { setLogs((l) => ({ ...l, [animalId]: [] })); return; }
@@ -145,39 +158,63 @@ export default function LivestockClient({
       {isEditor && (
         showAnimalForm
           ? <AnimalForm orgId={orgId} animals={animals} onDone={() => setShowAnimalForm(false)} />
-          : <div className="flex justify-end"><button className="btn-primary" onClick={() => setShowAnimalForm(true)}>Add animal</button></div>
+          : <div className="flex justify-end"><button className="btn-primary" onClick={() => { setShowAnimalForm(true); setEditingId(null); }}>Add animal</button></div>
       )}
 
       {animals.map((a) => {
         const expanded = expandedId === a.id;
+        const editing = editingId === a.id;
         const entries = logs[a.id];
         return (
           <div key={a.id} className="card overflow-hidden">
-            <button
-              className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-stone-50"
-              onClick={() => toggleExpand(a.id)}
-            >
-              <div>
-                <div className="font-semibold text-stone-800 flex items-center gap-2">
-                  {a.ear_tag_number}
-                  {a.breed && <span className="text-stone-400 font-normal text-sm">· {a.breed}</span>}
-                  {a.restricted ? (
-                    <span className="badge bg-red-100 text-red-700">
-                      Restricted{a.restricted_until ? ` until ${a.restricted_until}` : ""}
-                    </span>
-                  ) : (
-                    <span className="badge bg-emerald-100 text-emerald-700">Clear</span>
+            {editing ? (
+              <div className="px-5 py-4">
+                <AnimalForm orgId={orgId} animals={animals} animal={a} onDone={() => setEditingId(null)} />
+              </div>
+            ) : (
+              <div className="w-full flex items-center justify-between px-5 py-4 hover:bg-stone-50">
+                <button className="flex-1 text-left" onClick={() => toggleExpand(a.id)}>
+                  <div className="font-semibold text-stone-800 flex items-center gap-2">
+                    {a.ear_tag_number}
+                    {a.breed && <span className="text-stone-400 font-normal text-sm">· {a.breed}</span>}
+                    {a.restricted ? (
+                      <span className="badge bg-red-100 text-red-700">
+                        Restricted{a.restricted_until ? ` until ${a.restricted_until}` : ""}
+                      </span>
+                    ) : (
+                      <span className="badge bg-emerald-100 text-emerald-700">Clear</span>
+                    )}
+                  </div>
+                  <div className="text-xs text-stone-400 mt-0.5">
+                    {a.birth_date ? `Born ${a.birth_date}` : "Birth date not set"}
+                    {a.status !== "active" && ` · ${a.status}`}
+                  </div>
+                </button>
+                <div className="flex items-center gap-3 shrink-0">
+                  {isEditor && (
+                    <>
+                      <button
+                        className="text-xs font-medium text-brand-700 hover:underline"
+                        onClick={() => { setEditingId(a.id); setShowAnimalForm(false); }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="text-xs font-medium text-red-600 hover:underline"
+                        onClick={() => deleteAnimal(a.id, a.ear_tag_number)}
+                      >
+                        Delete
+                      </button>
+                    </>
                   )}
-                </div>
-                <div className="text-xs text-stone-400 mt-0.5">
-                  {a.birth_date ? `Born ${a.birth_date}` : "Birth date not set"}
-                  {a.status !== "active" && ` · ${a.status}`}
+                  <button className="text-stone-400 text-sm" onClick={() => toggleExpand(a.id)}>
+                    {expanded ? "Hide" : "View"}
+                  </button>
                 </div>
               </div>
-              <span className="text-stone-400 text-sm">{expanded ? "Hide" : "View"}</span>
-            </button>
+            )}
 
-            {expanded && (
+            {expanded && !editing && (
               <div className="border-t border-stone-100 px-5 py-4 space-y-2">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-semibold text-stone-700">Health log</h3>
