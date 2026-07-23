@@ -207,10 +207,6 @@ export default function SettingsClient({
             );
           })}
         </div>
-        <p className="text-xs text-stone-400 mt-3">
-          Cannabis-specific compliance/track-and-trace tracking is on the roadmap but not built yet — any
-          crop can already be tracked via Batches or Fields today.
-        </p>
       </div>
 
       {/* Batch ID prefix */}
