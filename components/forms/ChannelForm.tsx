@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
+import { errorMessage } from "@/lib/errors";
 
 const TYPES = ["restaurant", "farmers_market", "csa", "wholesale", "direct", "grocery", "other"];
 
@@ -31,7 +32,7 @@ export default function ChannelForm({ orgId, onDone }: { orgId: string; onDone: 
       onDone();
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save channel");
+      setError(errorMessage(err, "Could not save channel"));
     } finally {
       setSaving(false);
     }

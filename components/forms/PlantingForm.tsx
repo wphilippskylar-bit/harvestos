@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
+import { errorMessage } from "@/lib/errors";
 
 type Crop = { id: string; name: string; crop_family: string | null };
 type Row = { id: string; label: string };
@@ -58,7 +59,7 @@ export default function PlantingForm({
       onDone();
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save planting");
+      setError(errorMessage(err, "Could not save planting"));
     } finally {
       setSaving(false);
     }

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
+import { errorMessage } from "@/lib/errors";
 
 const METRIC_TYPES = [
   { key: "revenue", label: "Revenue ($)" },
@@ -37,7 +38,7 @@ export default function GoalForm({ orgId, onDone }: { orgId: string; onDone: () 
       onDone();
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save goal");
+      setError(errorMessage(err, "Could not save goal"));
     } finally {
       setSaving(false);
     }

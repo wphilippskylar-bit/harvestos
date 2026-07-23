@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
+import { errorMessage } from "@/lib/errors";
 
 export default function SoilTestForm({
   orgId, fieldId, rowId, onDone,
@@ -60,7 +61,7 @@ export default function SoilTestForm({
         `Filled in from the photo — double-check these before saving.${ex.confidence_notes ? ` (${ex.confidence_notes})` : ""}`
       );
     } catch (err) {
-      setExtractNote(err instanceof Error ? err.message : "Could not read the photo.");
+      setExtractNote(errorMessage(err, "Could not read the photo."));
     } finally {
       setExtracting(false);
     }
@@ -96,7 +97,7 @@ export default function SoilTestForm({
       onDone();
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save soil test");
+      setError(errorMessage(err, "Could not save soil test"));
     } finally {
       setSaving(false);
     }

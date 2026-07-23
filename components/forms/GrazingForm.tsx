@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
+import { errorMessage } from "@/lib/errors";
 
 type Row = { id: string; label: string };
 type Field = { id: string; name: string; field_rows: Row[] };
@@ -58,7 +59,7 @@ export default function GrazingForm({
       onDone();
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save grazing entry");
+      setError(errorMessage(err, "Could not save grazing entry"));
     } finally {
       setSaving(false);
     }

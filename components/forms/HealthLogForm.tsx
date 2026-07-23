@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
+import { errorMessage } from "@/lib/errors";
 
 const TREATMENT_TYPES = [
   { key: "vaccine", label: "Vaccine" },
@@ -45,7 +46,7 @@ export default function HealthLogForm({
       onDone();
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save health log entry");
+      setError(errorMessage(err, "Could not save health log entry"));
     } finally {
       setSaving(false);
     }

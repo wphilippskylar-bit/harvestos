@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
+import { errorMessage } from "@/lib/errors";
 
 export default function EnvLogForm({ orgId, onDone }: { orgId: string; onDone: () => void }) {
   const supabase = createClient();
@@ -36,7 +37,7 @@ export default function EnvLogForm({ orgId, onDone }: { orgId: string; onDone: (
       onDone();
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save log");
+      setError(errorMessage(err, "Could not save log"));
     } finally {
       setSaving(false);
     }

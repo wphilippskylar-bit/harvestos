@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
+import { errorMessage } from "@/lib/errors";
 
 type AnimalOption = { id: string; ear_tag_number: string };
 
@@ -40,7 +41,7 @@ export default function AnimalForm({
       onDone();
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save animal");
+      setError(errorMessage(err, "Could not save animal"));
     } finally {
       setSaving(false);
     }
