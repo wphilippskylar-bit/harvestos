@@ -348,6 +348,21 @@ export async function getNavOrder(userId: string | null, orgId: string) {
   return (data?.nav_order as string[] | undefined) ?? null;
 }
 
+export async function getDashboardPrefs(userId: string | null, orgId: string) {
+  if (DEMO_MODE || !userId || !orgId) return { cardOrder: null as string[] | null, hiddenCards: [] as string[] };
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("user_dashboard_prefs")
+    .select("card_order, hidden_cards")
+    .eq("user_id", userId)
+    .eq("org_id", orgId)
+    .maybeSingle();
+  return {
+    cardOrder: (data?.card_order as string[] | undefined) ?? null,
+    hiddenCards: (data?.hidden_cards as string[] | undefined) ?? [],
+  };
+}
+
 export async function getMarketWatchlist(orgId: string) {
   if (DEMO_MODE) return [];
   const supabase = createClient();

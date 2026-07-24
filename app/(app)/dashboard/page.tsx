@@ -1,8 +1,7 @@
-import { getOrgContext, getBatches, getPurchases, getSales, getSalesChannels, getCrops, getGoals, getInventory, getMarketWatchlist, getProfitability } from "@/lib/data";
-import { PageHeader, fmtCurrency, fmtCurrency2 } from "@/components/ui";
-import RevenueCostChart, { type WeeklyPoint } from "@/components/charts/RevenueCostChart";
-import CropMarginChart from "@/components/charts/CropMarginChart";
-import ChannelStatusChart from "@/components/charts/ChannelStatusChart";
+import { getOrgContext, getBatches, getPurchases, getSales, getSalesChannels, getCrops, getGoals, getInventory, getMarketWatchlist, getProfitability, getDashboardPrefs } from "@/lib/data";
+import { PageHeader, fmtCurrency } from "@/components/ui";
+import type { WeeklyPoint } from "@/components/charts/RevenueCostChart";
+import DashboardCards from "./DashboardCards";
 import Link from "next/link";
 
 function startOfWeek(d: Date) {
@@ -16,7 +15,7 @@ function startOfWeek(d: Date) {
 
 export default async function DashboardPage() {
   const ctx = await getOrgContext();
-  const [batches, purchases, sales, channels, crops, goals, inventory, marketWatchlist, profitability] = await Promise.all([
+  const [batches, purchases, sales, channels, crops, goals, inventory, marketWatchlist, profitability, dashboardPrefs] = await Promise.all([
     getBatches(ctx.orgId),
     getPurchases(ctx.orgId),
     getSales(ctx.orgId),
@@ -26,6 +25,7 @@ export default async function DashboardPage() {
     getInventory(ctx.orgId),
     getMarketWatchlist(ctx.orgId),
     getProfitability(ctx.orgId),
+    getDashboardPrefs(ctx.userId, ctx.orgId),
   ]);
 
   const totalRevenue = sales.reduce((a: number, s: any) => a + (s.total_revenue ?? s.quantity * s.unit_price), 0);
@@ -96,135 +96,17 @@ export default async function DashboardPage() {
         <StatTile href="/channels" label="Sales channels" value={String(channels.length)} note={`${channelCounts.active ?? 0} active`} />
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-4 mb-6">
-        <Link href="/profitability" className="card p-5 block hover:ring-1 hover:ring-brand-300 transition-shadow">
-          <h2 className="font-semibold text-stone-800 mb-1">Revenue vs. cost — last 8 weeks</h2>
-          <p className="text-xs text-stone-400 mb-3">From your Sales and Purchases logs. Click for the full Profitability breakdown.</p>
-          <RevenueCostChart data={weeks} />
-        </Link>
-        <Link href="/channels" className="card p-5 block hover:ring-1 hover:ring-brand-300 transition-shadow">
-          <h2 className="font-semibold text-stone-800 mb-1">Sales channel pipeline</h2>
-          <p className="text-xs text-stone-400 mb-3">Untried → Attempted → In Progress → Active.</p>
-          <ChannelStatusChart counts={channelCounts} />
-        </Link>
-      </div>
-
-      <div className="grid lg:grid-cols-2 gap-4 mb-6">
-        <Link href="/profitability" className="card p-5 block hover:ring-1 hover:ring-brand-300 transition-shadow">
-          <h2 className="font-semibold text-stone-800 mb-1">Cost per tray by crop</h2>
-          <p className="text-xs text-stone-400 mb-3">Gold = premium/specialty crop. Lower is better margin.</p>
-          <CropMarginChart data={cropMarginData} />
-        </Link>
-        <div className="card p-5">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold text-stone-800">Goals</h2>
-            <Link href="/goals" className="text-xs font-medium text-brand-700 hover:underline">View all →</Link>
-          </div>
-          <div className="space-y-4">
-            {goals.length === 0 && <p className="text-sm text-stone-400">No goals set yet.</p>}
-            {goals.slice(0, 3).map((g: any) => {
-              const pct = Math.min(100, g.target_value ? (g.current_value / g.target_value) * 100 : 0);
-              return (
-                <Link href="/goals" key={g.id} className="block">
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="font-medium text-stone-700">{g.title}</span>
-                    <span className="text-stone-400">{Math.round(pct)}%</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-stone-100 overflow-hidden">
-                    <div className="h-full bg-brand-600 rounded-full" style={{ width: `${pct}%` }} />
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      <div className="grid lg:grid-cols-2 gap-4 mb-6">
-        {/* Pinned Profitability summary */}
-        <Link href="/profitability" className="card p-5 block hover:ring-1 hover:ring-brand-300 transition-shadow">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold text-stone-800">Profitability</h2>
-            <span className="text-xs font-medium text-brand-700">View all →</span>
-          </div>
-          {latestMonth ? (
-            <div>
-              <p className="text-xs text-stone-400 mb-2">
-                {new Date(latestMonth.month).toLocaleDateString(undefined, { year: "numeric", month: "long" })}
-              </p>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <div className="text-xs text-stone-400">Revenue</div>
-                  <div className="font-semibold text-stone-800">{fmtCurrency2(latestMonth.net_revenue)}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-stone-400">Costs</div>
-                  <div className="font-semibold text-stone-800">{fmtCurrency2(latestMonth.copex)}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-stone-400">Profit</div>
-                  <div className={`font-semibold ${latestMonth.profit >= 0 ? "text-emerald-700" : "text-red-600"}`}>
-                    {fmtCurrency2(latestMonth.profit)}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-stone-400">No P&amp;L data yet — log purchases and sales to see this fill in.</p>
-          )}
-        </Link>
-
-        {/* Pinned Market Prices */}
-        <Link href="/market" className="card p-5 block hover:ring-1 hover:ring-brand-300 transition-shadow">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold text-stone-800">Market Prices</h2>
-            <span className="text-xs font-medium text-brand-700">View all →</span>
-          </div>
-          {marketWatchlist.length === 0 ? (
-            <p className="text-sm text-stone-400">
-              No pinned reports yet — search USDA commodity prices on the Market Prices page and pin
-              the ones you check often.
-            </p>
-          ) : (
-            <div className="space-y-1.5">
-              {marketWatchlist.slice(0, 5).map((w: any) => (
-                <div key={w.id} className="text-sm text-stone-600">{w.report_title}</div>
-              ))}
-            </div>
-          )}
-        </Link>
-      </div>
-
-      <Link href="/batches" className="card p-5 block hover:ring-1 hover:ring-brand-300 transition-shadow">
-        <h2 className="font-semibold text-stone-800 mb-3">Recent batches</h2>
-        <div className="overflow-x-auto -mx-5 px-5">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs text-stone-400 uppercase tracking-wide">
-                <th className="pb-2 pr-4">Batch ID</th>
-                <th className="pb-2 pr-4">Crop</th>
-                <th className="pb-2 pr-4">Trays</th>
-                <th className="pb-2 pr-4">Planted</th>
-                <th className="pb-2">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-stone-100">
-              {batches.slice(0, 6).map((b: any) => (
-                <tr key={b.id}>
-                  <td className="py-2 pr-4 font-mono text-xs text-stone-500">{b.batch_id}</td>
-                  <td className="py-2 pr-4">{b.crop_name_snapshot}</td>
-                  <td className="py-2 pr-4">{b.tray_amount}</td>
-                  <td className="py-2 pr-4 text-stone-500">{b.plant_date}</td>
-                  <td className="py-2 capitalize text-stone-500">{b.status}</td>
-                </tr>
-              ))}
-              {batches.length === 0 && (
-                <tr><td colSpan={5} className="py-6 text-center text-stone-400">No batches yet — add one from the Batches tab.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </Link>
+      <DashboardCards
+        cardOrder={dashboardPrefs.cardOrder}
+        hiddenCards={dashboardPrefs.hiddenCards}
+        weeks={weeks}
+        channelCounts={channelCounts}
+        cropMarginData={cropMarginData}
+        goals={goals}
+        latestMonth={latestMonth}
+        marketWatchlist={marketWatchlist}
+        batches={batches}
+      />
     </div>
   );
 }

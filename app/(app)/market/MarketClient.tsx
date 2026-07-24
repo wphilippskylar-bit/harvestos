@@ -99,9 +99,34 @@ export default function MarketClient({ orgId, watchlist, isEditor }: { orgId: st
   // (report_date, office_name, etc.) ever showed up and the actual prices were silently cut off.
   // Fix: union the keys across every row (in case rows have slightly different fields) and show
   // everything — the table already scrolls horizontally, so there's no need to truncate.
+  const [showAllColumns, setShowAllColumns] = useState(false);
+
   const columns: string[] = rows.length > 0
     ? Array.from(rows.reduce((set: Set<string>, row) => { Object.keys(row).forEach((k) => set.add(k)); return set; }, new Set<string>()))
     : [];
+
+  // Every USDA report field, no matter how obscure, was showing at once — which is a lot for
+  // someone who just wants to know "what's the price today." Pick out the handful of columns a
+  // typical farmer/rancher actually cares about (date, price, count/head, quality/grade) by
+  // keyword match against whatever this report's field names are, and default to just those, with
+  // an "Show all columns" toggle for anyone who wants the full USDA report.
+  const PRIORITY_PATTERNS = [
+    /^report_date$/i, /date/i,
+    /price/i, /rate/i,
+    /head/i, /count/i, /qty|quantity|receipts/i,
+    /grade/i, /quality/i, /class/i, /weight/i,
+  ];
+  const priorityColumns = (() => {
+    const matched: string[] = [];
+    for (const pattern of PRIORITY_PATTERNS) {
+      for (const c of columns) {
+        if (pattern.test(c) && !matched.includes(c)) matched.push(c);
+      }
+    }
+    return matched.length > 0 ? matched.slice(0, 6) : columns.slice(0, 6);
+  })();
+  const displayColumns = showAllColumns ? columns : priorityColumns;
+  const hasMoreColumns = columns.length > priorityColumns.length;
 
   return (
     <div className="space-y-4">
@@ -202,9 +227,19 @@ export default function MarketClient({ orgId, watchlist, isEditor }: { orgId: st
 
       {activeSlug && (
         <div className="card overflow-hidden">
-          <div className="px-5 py-4 border-b border-stone-100">
-            <h3 className="font-semibold text-stone-800">{activeTitle}</h3>
-            <p className="text-xs text-stone-400 mt-0.5">Live from USDA — refreshed roughly every 15 minutes.</p>
+          <div className="px-5 py-4 border-b border-stone-100 flex items-center justify-between gap-3">
+            <div>
+              <h3 className="font-semibold text-stone-800">{activeTitle}</h3>
+              <p className="text-xs text-stone-400 mt-0.5">Live from USDA — refreshed roughly every 15 minutes.</p>
+            </div>
+            {rows.length > 0 && hasMoreColumns && (
+              <button
+                className="text-xs font-medium text-brand-700 hover:underline shrink-0"
+                onClick={() => setShowAllColumns((v) => !v)}
+              >
+                {showAllColumns ? "Show fewer columns" : "Show all columns"}
+              </button>
+            )}
           </div>
           {loadingRows ? (
             <div className="px-5 py-4"><p className="text-sm text-stone-400">Loading…</p></div>
@@ -215,13 +250,13 @@ export default function MarketClient({ orgId, watchlist, isEditor }: { orgId: st
               <table className="w-full text-sm">
                 <thead className="bg-stone-50 text-xs text-stone-500 uppercase tracking-wide">
                   <tr>
-                    {columns.map((c) => <th key={c} className="text-left py-3 px-4 whitespace-nowrap">{c.replace(/_/g, " ")}</th>)}
+                    {displayColumns.map((c) => <th key={c} className="text-left py-3 px-4 whitespace-nowrap">{c.replace(/_/g, " ")}</th>)}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-100">
                   {rows.slice(0, 50).map((row, i) => (
                     <tr key={i}>
-                      {columns.map((c) => <td key={c} className="py-2 px-4 text-stone-600 whitespace-nowrap">{String(row[c] ?? "")}</td>)}
+                      {displayColumns.map((c) => <td key={c} className="py-2 px-4 text-stone-600 whitespace-nowrap">{String(row[c] ?? "")}</td>)}
                     </tr>
                   ))}
                 </tbody>

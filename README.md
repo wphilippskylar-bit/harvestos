@@ -512,6 +512,23 @@ failing silently — everything else in the app works normally either way.
   setting later doesn't require touching any saved data.
 - Run `0022_unit_prefs.sql` after `0021_cea_module.sql`.
 
+## Market Prices: condensed columns, wider search matching, and dashboard customization (migration 0023)
+
+- **Market Prices table is condensed by default** — USDA reports can return dozens of fields; the
+  table now shows just what a typical farmer/rancher checks first (date, price, head count/quantity,
+  grade/quality/class), picked automatically from whatever fields that specific report has. A "Show
+  all columns" button next to the report title expands to the full USDA report when you want it.
+- **Search matches more reliably** — the old search required your exact search phrase to appear
+  word-for-word in a report's title, so "Fruits and Vegetables" came back empty against a report
+  titled "Fruit & Vegetable" (singular, ampersand instead of "and"). Search now matches each word
+  separately, tolerates singular/plural, and normalizes "&" to "and", plus checks a few more fields
+  (category, market type, office city/state) than before.
+- **Settings → "Customize dashboard"** — hide any dashboard card you don't check (revenue/cost
+  chart, sales channel pipeline, cost-per-tray, goals, profitability summary, market prices, recent
+  batches) and reorder the rest, same per-user pattern as the nav customization from migration 0020.
+  The four KPI tiles at the very top (revenue, costs, trays, channels) always stay put.
+- Run `0023_dashboard_prefs.sql` after `0022_unit_prefs.sql`.
+
 ## Installed app not updating after a deploy
 
 If you (or a team member) installed Harvest OS to a phone or desktop home screen and it kept

@@ -7,6 +7,7 @@ import { DEMO_MODE } from "@/lib/demo-mode";
 import type { OrgContext } from "@/lib/data";
 import { pushSupported, getExistingPushSubscription, enablePushNotifications, disablePushNotifications } from "@/lib/push";
 import NavOrderSettings from "@/components/NavOrderSettings";
+import DashboardCustomizeSettings from "@/components/DashboardCustomizeSettings";
 
 const PLAN_TIERS: Record<string, { label: string; price: string; seats: string }> = {
   free: { label: "Free (you)", price: "$0", seats: "Up to 3 seats" },
@@ -29,11 +30,13 @@ export default function SettingsClient({
   members,
   invites,
   navOrder,
+  dashboardPrefs,
 }: {
   ctx: OrgContext;
   members: Member[];
   invites: Invite[];
   navOrder?: string[] | null;
+  dashboardPrefs?: { cardOrder: string[] | null; hiddenCards: string[] };
 }) {
   const supabase = createClient();
   const router = useRouter();
@@ -331,6 +334,13 @@ export default function SettingsClient({
 
       {/* Nav customization */}
       <NavOrderSettings orgId={ctx.orgId} userId={ctx.userId} operationTypes={ctx.operationTypes ?? ["microgreens"]} navOrder={navOrder ?? null} />
+
+      <DashboardCustomizeSettings
+        orgId={ctx.orgId}
+        userId={ctx.userId}
+        cardOrder={dashboardPrefs?.cardOrder ?? null}
+        hiddenCards={dashboardPrefs?.hiddenCards ?? []}
+      />
 
       {/* Push notifications */}
       <div className="card p-5">
