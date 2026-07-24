@@ -10,6 +10,7 @@ const BASE_NAV = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/batches", label: "Batches", requires: "microgreens" },
   { href: "/fields", label: "Fields", requires: "field_crop" },
+  { href: "/map", label: "Map", requires: ["field_crop", "livestock"] },
   { href: "/livestock", label: "Livestock", requires: "livestock" },
   { href: "/compliance", label: "Compliance", requires: "livestock" },
   { href: "/inventory", label: "Inventory" },
@@ -31,7 +32,11 @@ export default function Nav({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const supabase = createClient();
-  const NAV = BASE_NAV.filter((item) => !item.requires || operationTypes.includes(item.requires));
+  const NAV = BASE_NAV.filter((item) => {
+    if (!item.requires) return true;
+    const required = Array.isArray(item.requires) ? item.requires : [item.requires];
+    return required.some((r) => operationTypes.includes(r));
+  });
 
   async function handleLogout() {
     await supabase.auth.signOut();

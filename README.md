@@ -53,8 +53,9 @@ connect them yourself. Here's the whole path, roughly 15 minutes:
    then `0008_inventory_and_batches.sql`, then `0009_inventory_edit_permissions.sql`, then
    `0010_push_and_harvest_photos.sql`, then `0011_field_crops.sql`, then `0012_livestock.sql`, then
    `0013_grazing.sql`, then `0014_platform_admin.sql`, then `0015_profitability.sql`, then
-   `0016_farm_inputs_labor_tax.sql`, then `0017_equipment_livestock_purchases.sql` — **in that
-   exact order**, each as its own run. (They build on each other; running out of order will error.)
+   `0016_farm_inputs_labor_tax.sql`, then `0017_equipment_livestock_purchases.sql`, then
+   `0018_field_map.sql` — **in that exact order**, each as its own run. (They build on each other;
+   running out of order will error.)
 4. If a run errors, read the message — it's almost always "already exists" from re-running a step
    twice, which is safe to ignore, or a typo from copy/paste truncation. Re-copy the full file if
    unsure.
@@ -402,6 +403,24 @@ withdrawal periods, restriction status, pasture movement) into a dated report:
 
 Only shows up in the nav once Livestock tracking is turned on (Settings → "What do you grow or
 raise?"), same as the Livestock page itself.
+
+## Map — a free visual layout of your fields, high tunnels, and pastures (migration 0018)
+
+Closes the most visible gap against Climate FieldView and AgriWebb, which both lead with a map —
+without needing in-cab hardware sync or a paid map service. New "Map" nav item (shows once Fields
+or Livestock tracking is on):
+
+- **Set pin location**: pick a field from the dropdown, click "Set pin location," then click
+  anywhere on the map to drop a pin for it.
+- **Draw boundary**: pick a field, click "Draw boundary," then click the map to place each corner
+  of the field/pasture outline — click "Finish boundary" once you've placed at least 3 points. The
+  drawn area's approximate acreage shows in the field list below the map.
+- Runs on free OpenStreetMap tiles via Leaflet — no API key, no per-map-load fee, no vendor
+  contract.
+- Read-only for viewers; editors (owner/admin/member) get the pin/boundary controls.
+
+Both are optional and additive — existing fields with nothing set just don't show a pin/boundary
+until you add one.
 
 ## Installed app not updating after a deploy
 
