@@ -384,6 +384,25 @@ Closes three gaps found right after shipping 0016:
   animal you already have — either way, the purchase cost now counts toward that animal's numbers
   on the Profitability page, the same way health-log costs and tagged labor already did.
 
+## Compliance & audit-trail exports — new "Compliance" nav item
+
+Closes the other half of the AgriWebb feature comparison (animal mapping/withdrawal tracking was
+already built in 0012 — this is the "automated compliance reporting and biosecurity audit trail"
+half). No new data collection — it packages what you're already logging (health treatments,
+withdrawal periods, restriction status, pasture movement) into a dated report:
+
+- **Date range picker** — defaults to the last 12 months, adjustable.
+- **Current herd biosecurity status** — every animal, with active restrictions flagged in red.
+- **Treatment audit trail** — every logged treatment in the period, with withdrawal end dates
+  called out.
+- **Pasture movement log** — where the herd's been, for traceability.
+- **Export as CSV** (treatments and grazing, separately) or **Print / Save as PDF** for the whole
+  formatted report — handy for a buyer, inspector, or grant application asking "show me your
+  records." The print view drops the on-screen controls and just shows the report itself.
+
+Only shows up in the nav once Livestock tracking is turned on (Settings → "What do you grow or
+raise?"), same as the Livestock page itself.
+
 ## Installed app not updating after a deploy
 
 If you (or a team member) installed Harvest OS to a phone or desktop home screen and it kept

@@ -175,6 +175,39 @@ export async function getAnimalHealthLogs(animalId: string) {
   return data ?? [];
 }
 
+export async function getComplianceReportData(orgId: string, startDate: string, endDate: string) {
+  if (DEMO_MODE) return { animals: [], healthLogs: [], grazingEvents: [] };
+  const supabase = createClient();
+  const [{ data: animals }, { data: statuses }, { data: healthLogs }, { data: grazingEvents }] = await Promise.all([
+    supabase.from("animals").select("*").eq("org_id", orgId).order("ear_tag_number"),
+    supabase.from("animal_status").select("*").eq("org_id", orgId),
+    supabase
+      .from("animal_health_logs")
+      .select("*, animals(ear_tag_number)")
+      .eq("org_id", orgId)
+      .gte("log_date", startDate)
+      .lte("log_date", endDate)
+      .order("log_date", { ascending: false }),
+    supabase
+      .from("grazing_events")
+      .select("*, fields(name), field_rows(label)")
+      .eq("org_id", orgId)
+      .gte("start_date", startDate)
+      .lte("start_date", endDate)
+      .order("start_date", { ascending: false }),
+  ]);
+  const statusMap = new Map((statuses ?? []).map((s) => [s.animal_id, s]));
+  return {
+    animals: (animals ?? []).map((a) => ({
+      ...a,
+      restricted: statusMap.get(a.id)?.restricted ?? false,
+      restricted_until: statusMap.get(a.id)?.restricted_until ?? null,
+    })),
+    healthLogs: healthLogs ?? [],
+    grazingEvents: grazingEvents ?? [],
+  };
+}
+
 export async function isPlatformAdmin() {
   if (DEMO_MODE) return false;
   const supabase = createClient();
