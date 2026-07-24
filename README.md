@@ -497,6 +497,21 @@ failing silently — everything else in the app works normally either way.
   the nav item — nothing is deleted, so it's safe to toggle if you're not sure yet.
 - Run `0021_cea_module.sql` after `0020_nav_prefs.sql`.
 
+## Unit preferences — pounds vs ounces, acres vs square feet (migration 0022)
+
+- **Settings → "Units"** — pick pounds or ounces for weight, and acres or square feet for field/area
+  size. Microgreens-only farms default to ounces automatically; everyone else defaults to pounds and
+  acres. This doesn't touch anything already saved — it changes what new entries default to and how
+  sizes are displayed.
+- **Fields now has a size field** — Fields never had a size column before; adding unit preferences
+  gave it one (`size_acres`, optional, shown in whichever unit you've picked).
+- **Greenhouse / Indoor area size** now displays in your preferred unit too, converting from the
+  stored square-footage automatically.
+- Under the hood, values are always stored in one fixed unit per column (fields in acres, CEA areas
+  in square feet) — `lib/units.ts` converts to/from your preferred display unit, so switching the
+  setting later doesn't require touching any saved data.
+- Run `0022_unit_prefs.sql` after `0021_cea_module.sql`.
+
 ## Installed app not updating after a deploy
 
 If you (or a team member) installed Harvest OS to a phone or desktop home screen and it kept

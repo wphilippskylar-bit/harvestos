@@ -25,8 +25,8 @@ type FieldDetail = {
 };
 
 export default function FieldsClient({
-  orgId, role, fields, crops,
-}: { orgId: string; role: string; fields: Field[]; crops: Crop[] }) {
+  orgId, role, fields, crops, areaUnit,
+}: { orgId: string; role: string; fields: Field[]; crops: Crop[]; areaUnit?: string }) {
   const supabase = createClient();
   const isEditor = role === "owner" || role === "admin" || role === "member";
   const [showFieldForm, setShowFieldForm] = useState(false);
@@ -94,7 +94,7 @@ export default function FieldsClient({
     <div className="space-y-4">
       {isEditor && (
         showFieldForm
-          ? <FieldForm orgId={orgId} onDone={() => setShowFieldForm(false)} />
+          ? <FieldForm orgId={orgId} areaUnit={areaUnit} onDone={() => setShowFieldForm(false)} />
           : <div className="flex justify-end"><button className="btn-primary" onClick={() => setShowFieldForm(true)}>Add field</button></div>
       )}
 

@@ -48,6 +48,11 @@ export default function SettingsClient({
   const [agTaxExempt, setAgTaxExempt] = useState<boolean>(ctx.agTaxExempt ?? false);
   const [savingTaxExempt, setSavingTaxExempt] = useState(false);
 
+  const [weightUnit, setWeightUnit] = useState<string>(ctx.weightUnit ?? "lb");
+  const [savingWeightUnit, setSavingWeightUnit] = useState(false);
+  const [areaUnit, setAreaUnit] = useState<string>(ctx.areaUnit ?? "acres");
+  const [savingAreaUnit, setSavingAreaUnit] = useState(false);
+
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("member");
   const [invitingBusy, setInvitingBusy] = useState(false);
@@ -98,6 +103,26 @@ export default function SettingsClient({
     setSavingOps(true);
     await supabase.from("organizations").update({ operation_types: next }).eq("id", ctx.orgId);
     setSavingOps(false);
+    router.refresh();
+  }
+
+  async function changeWeightUnit(next: string) {
+    if (!isEditor) return;
+    setWeightUnit(next);
+    if (DEMO_MODE) return;
+    setSavingWeightUnit(true);
+    await supabase.from("organizations").update({ weight_unit: next }).eq("id", ctx.orgId);
+    setSavingWeightUnit(false);
+    router.refresh();
+  }
+
+  async function changeAreaUnit(next: string) {
+    if (!isEditor) return;
+    setAreaUnit(next);
+    if (DEMO_MODE) return;
+    setSavingAreaUnit(true);
+    await supabase.from("organizations").update({ area_unit: next }).eq("id", ctx.orgId);
+    setSavingAreaUnit(false);
     router.refresh();
   }
 
@@ -224,6 +249,42 @@ export default function SettingsClient({
               </button>
             );
           })}
+        </div>
+      </div>
+
+      {/* Units */}
+      <div className="card p-5">
+        <h2 className="font-semibold text-stone-800 mb-1">Units</h2>
+        <p className="text-xs text-stone-500 mb-3">
+          How you want weights and field/area sizes shown throughout the app. Microgreens growers
+          usually want ounces; most everyone else wants pounds. Doesn't affect anything already
+          saved — new entries default to your unit.
+        </p>
+        <div className="grid sm:grid-cols-2 gap-4 max-w-md">
+          <div>
+            <label className="label">Weight</label>
+            <select
+              className="input"
+              value={weightUnit}
+              disabled={!isEditor || savingWeightUnit}
+              onChange={(e) => changeWeightUnit(e.target.value)}
+            >
+              <option value="lb">Pounds (lb)</option>
+              <option value="oz">Ounces (oz)</option>
+            </select>
+          </div>
+          <div>
+            <label className="label">Field / area size</label>
+            <select
+              className="input"
+              value={areaUnit}
+              disabled={!isEditor || savingAreaUnit}
+              onChange={(e) => changeAreaUnit(e.target.value)}
+            >
+              <option value="acres">Acres</option>
+              <option value="sq_ft">Square feet</option>
+            </select>
+          </div>
         </div>
       </div>
 

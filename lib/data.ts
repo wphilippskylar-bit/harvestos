@@ -16,6 +16,8 @@ export type OrgContext = {
   userEmail?: string | null;
   operationTypes?: string[];
   agTaxExempt?: boolean;
+  weightUnit?: string;
+  areaUnit?: string;
 };
 
 export async function getOrgContext(): Promise<OrgContext> {
@@ -32,6 +34,8 @@ export async function getOrgContext(): Promise<OrgContext> {
       userEmail: "you@example.com",
       operationTypes: ["microgreens"],
       agTaxExempt: false,
+      weightUnit: "oz",
+      areaUnit: "acres",
     };
   }
   const supabase = createClient();
@@ -40,14 +44,14 @@ export async function getOrgContext(): Promise<OrgContext> {
 
   const { data: membership } = await supabase
     .from("memberships")
-    .select("org_id, role, organizations(name, plan_tier, seat_limit, batch_id_prefix, operation_types, ag_tax_exempt)")
+    .select("org_id, role, organizations(name, plan_tier, seat_limit, batch_id_prefix, operation_types, ag_tax_exempt, weight_unit, area_unit)")
     .eq("user_id", user.id)
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
 
   if (!membership) return { orgId: "", orgName: "", role: "", userId: user.id, isDemo: false, userEmail: user.email };
-  const org = membership.organizations as unknown as { name: string; plan_tier: string; seat_limit: number; batch_id_prefix: string; operation_types: string[]; ag_tax_exempt: boolean } | null;
+  const org = membership.organizations as unknown as { name: string; plan_tier: string; seat_limit: number; batch_id_prefix: string; operation_types: string[]; ag_tax_exempt: boolean; weight_unit: string; area_unit: string } | null;
   return {
     orgId: membership.org_id,
     orgName: org?.name ?? "",
@@ -60,6 +64,8 @@ export async function getOrgContext(): Promise<OrgContext> {
     userEmail: user.email,
     operationTypes: org?.operation_types ?? ["microgreens"],
     agTaxExempt: org?.ag_tax_exempt ?? false,
+    weightUnit: org?.weight_unit ?? "lb",
+    areaUnit: org?.area_unit ?? "acres",
   };
 }
 

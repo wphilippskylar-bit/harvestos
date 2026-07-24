@@ -12,7 +12,7 @@ export default async function FieldsPage() {
         title="Fields"
         subtitle="Field, row/bed, soil test, and rotation tracking for high tunnel, commercial, and urban crops."
       />
-      <FieldsClient orgId={ctx.orgId} role={ctx.role} fields={fields} crops={crops} />
+      <FieldsClient orgId={ctx.orgId} role={ctx.role} fields={fields} crops={crops} areaUnit={ctx.areaUnit} />
     </div>
   );
 }

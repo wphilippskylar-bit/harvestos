@@ -5,13 +5,16 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import { errorMessage } from "@/lib/errors";
+import { areaUnitLabel, defaultAreaUnit, preferredToAcres } from "@/lib/units";
 
-export default function FieldForm({ orgId, onDone }: { orgId: string; onDone: () => void }) {
+export default function FieldForm({ orgId, areaUnit, onDone }: { orgId: string; areaUnit?: string; onDone: () => void }) {
   const supabase = createClient();
   const router = useRouter();
+  const unit = defaultAreaUnit(areaUnit);
   const [name, setName] = useState("");
   const [isHighTunnel, setIsHighTunnel] = useState(false);
   const [rowLabels, setRowLabels] = useState("");
+  const [size, setSize] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,7 +26,12 @@ export default function FieldForm({ orgId, onDone }: { orgId: string; onDone: ()
       if (DEMO_MODE) { onDone(); return; }
       const { data: field, error: insertError } = await supabase
         .from("fields")
-        .insert({ org_id: orgId, name, is_high_tunnel: isHighTunnel })
+        .insert({
+          org_id: orgId,
+          name,
+          is_high_tunnel: isHighTunnel,
+          size_acres: size ? preferredToAcres(Number(size), unit) : null,
+        })
         .select()
         .single();
       if (insertError) throw insertError;
@@ -54,6 +62,10 @@ export default function FieldForm({ orgId, onDone }: { orgId: string; onDone: ()
         <div>
           <label className="label">Rows/beds (optional, comma-separated)</label>
           <input className="input" value={rowLabels} onChange={(e) => setRowLabels(e.target.value)} placeholder="Row 1, Row 2, Row 3" />
+        </div>
+        <div>
+          <label className="label">Size ({areaUnitLabel(unit)}, optional)</label>
+          <input className="input" type="number" step="0.01" min="0" value={size} onChange={(e) => setSize(e.target.value)} />
         </div>
       </div>
       <label className="flex items-center gap-2 text-sm text-stone-600">

@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/ui";
 import CeaAreaForm from "@/components/forms/CeaAreaForm";
 import CeaPlantingForm from "@/components/forms/CeaPlantingForm";
 import CeaEnvLogForm from "@/components/forms/CeaEnvLogForm";
+import { areaUnitLabel, defaultAreaUnit, sqFtToPreferred } from "@/lib/units";
 
 type Planting = { id: string; status: string; crop_name_snapshot: string | null; planted_date: string };
 type Row = { id: string; label: string };
@@ -40,12 +41,14 @@ const AREA_TYPE_LABELS: Record<string, string> = {
 };
 
 export default function CeaClient({
-  orgId, role, areas, crops = [],
+  orgId, role, areas, crops = [], weightUnit, areaUnit,
 }: {
   orgId: string;
   role: string;
   areas: Area[];
   crops?: Crop[];
+  weightUnit?: string;
+  areaUnit?: string;
 }) {
   const supabase = createClient();
   const router = useRouter();
@@ -101,7 +104,7 @@ export default function CeaClient({
     <div className="space-y-4">
       {isEditor && (
         showAreaForm
-          ? <CeaAreaForm orgId={orgId} onDone={() => setShowAreaForm(false)} />
+          ? <CeaAreaForm orgId={orgId} areaUnit={areaUnit} onDone={() => setShowAreaForm(false)} />
           : <div className="flex justify-end"><button className="btn-primary" onClick={() => setShowAreaForm(true)}>+ Add area</button></div>
       )}
 
@@ -109,6 +112,8 @@ export default function CeaClient({
         const expanded = expandedId === a.id;
         const logs = envLogs[a.id];
         const activePlantings = a.cea_plantings?.filter((p) => p.status !== "harvested" && p.status !== "failed") ?? [];
+        const unit = defaultAreaUnit(areaUnit);
+        const displaySize = a.sq_ft != null ? sqFtToPreferred(a.sq_ft, unit) : null;
         return (
           <div key={a.id} className="card overflow-hidden">
             <div className="w-full flex items-center justify-between px-5 py-4 hover:bg-stone-50">
@@ -118,7 +123,7 @@ export default function CeaClient({
                   <span className="badge bg-brand-700/10 text-brand-700">{AREA_TYPE_LABELS[a.area_type] ?? a.area_type}</span>
                 </div>
                 <div className="text-xs text-stone-400 mt-0.5">
-                  {a.sq_ft ? `${a.sq_ft} sq ft · ` : ""}
+                  {displaySize != null ? `${Math.round(displaySize * 100) / 100} ${areaUnitLabel(unit)} · ` : ""}
                   {activePlantings.length} active planting{activePlantings.length === 1 ? "" : "s"}
                 </div>
               </button>
@@ -159,6 +164,7 @@ export default function CeaClient({
                       areaId={a.id}
                       rows={a.cea_area_rows}
                       crops={crops}
+                      weightUnit={weightUnit}
                       onDone={() => { setShowPlantingForm(null); router.refresh(); }}
                     />
                   )}

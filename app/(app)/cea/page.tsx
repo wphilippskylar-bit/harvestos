@@ -14,7 +14,7 @@ export default async function CeaPage() {
         title="Greenhouse / Indoor"
         subtitle="Controlled-environment growing — greenhouse, high tunnel, indoor vertical, or hydroponic areas, each with its own plantings and environment log."
       />
-      <CeaClient orgId={ctx.orgId} role={ctx.role} areas={areas} crops={crops} />
+      <CeaClient orgId={ctx.orgId} role={ctx.role} areas={areas} crops={crops} weightUnit={ctx.weightUnit} areaUnit={ctx.areaUnit} />
     </div>
   );
 }

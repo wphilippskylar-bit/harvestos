@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import { errorMessage } from "@/lib/errors";
+import { defaultWeightUnit } from "@/lib/units";
 
 type Crop = { id: string; name: string };
 type Row = { id: string; label: string };
@@ -17,12 +18,13 @@ const STATUSES = [
 ];
 
 export default function CeaPlantingForm({
-  orgId, areaId, rows = [], crops = [], onDone,
+  orgId, areaId, rows = [], crops = [], weightUnit, onDone,
 }: {
   orgId: string;
   areaId: string;
   rows?: Row[];
   crops?: Crop[];
+  weightUnit?: string;
   onDone: () => void;
 }) {
   const supabase = createClient();
@@ -34,7 +36,7 @@ export default function CeaPlantingForm({
   const [expectedHarvestDate, setExpectedHarvestDate] = useState("");
   const [status, setStatus] = useState("planted");
   const [yieldAmount, setYieldAmount] = useState("");
-  const [yieldUnit, setYieldUnit] = useState("lb");
+  const [yieldUnit, setYieldUnit] = useState<string>(defaultWeightUnit(weightUnit));
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);

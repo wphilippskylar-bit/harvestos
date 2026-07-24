@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import { errorMessage } from "@/lib/errors";
+import { areaUnitLabel, defaultAreaUnit, preferredToSqFt } from "@/lib/units";
 
 const AREA_TYPES = [
   { key: "greenhouse", label: "Greenhouse" },
@@ -14,9 +15,10 @@ const AREA_TYPES = [
   { key: "other", label: "Other" },
 ];
 
-export default function CeaAreaForm({ orgId, onDone }: { orgId: string; onDone: () => void }) {
+export default function CeaAreaForm({ orgId, areaUnit, onDone }: { orgId: string; areaUnit?: string; onDone: () => void }) {
   const supabase = createClient();
   const router = useRouter();
+  const unit = defaultAreaUnit(areaUnit);
   const [name, setName] = useState("");
   const [areaType, setAreaType] = useState("greenhouse");
   const [sqFt, setSqFt] = useState("");
@@ -34,7 +36,7 @@ export default function CeaAreaForm({ orgId, onDone }: { orgId: string; onDone: 
         org_id: orgId,
         name,
         area_type: areaType,
-        sq_ft: sqFt ? Number(sqFt) : null,
+        sq_ft: sqFt ? preferredToSqFt(Number(sqFt), unit) : null,
         notes: notes || null,
       });
       if (error) throw error;
@@ -61,8 +63,8 @@ export default function CeaAreaForm({ orgId, onDone }: { orgId: string; onDone: 
           </select>
         </div>
         <div>
-          <label className="label">Size (sq ft)</label>
-          <input className="input" type="number" step="1" value={sqFt} onChange={(e) => setSqFt(e.target.value)} />
+          <label className="label">Size ({areaUnitLabel(unit)})</label>
+          <input className="input" type="number" step={unit === "acres" ? "0.01" : "1"} value={sqFt} onChange={(e) => setSqFt(e.target.value)} />
         </div>
         <div className="sm:col-span-3">
           <label className="label">Notes (optional)</label>
