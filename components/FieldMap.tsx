@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MapContainer, TileLayer, Marker, Polygon, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Polygon, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { createClient } from "@/lib/supabase/client";
@@ -63,6 +63,19 @@ function ClickHandler({ onClick }: { onClick: (lat: number, lng: number) => void
   return null;
 }
 
+// Imperatively pans/zooms the map when a search result is picked — MapContainer only reads its
+// center/zoom props on first render, so moving the view after that has to go through the map
+// instance itself (useMap), not by changing props.
+function FlyTo({ target }: { target: [number, number] | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (target) map.flyTo(target, 16);
+  }, [target, map]);
+  return null;
+}
+
+type SearchResult = { display_name: string; lat: string; lon: string };
+
 export default function FieldMap({ orgId, fields, isEditor }: { orgId: string; fields: Field[]; isEditor: boolean }) {
   const supabase = createClient();
   const router = useRouter();
@@ -71,6 +84,12 @@ export default function FieldMap({ orgId, fields, isEditor }: { orgId: string; f
   const [drawPoints, setDrawPoints] = useState<[number, number][]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [searchText, setSearchText] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searchPin, setSearchPin] = useState<[number, number] | null>(null);
+  const [flyTarget, setFlyTarget] = useState<[number, number] | null>(null);
 
   const fieldsWithLocation = fields.filter((f) => f.map_lat != null && f.map_lng != null);
   const fieldsWithBoundary = fields.filter((f) => f.boundary && f.boundary.length >= 3);
@@ -144,8 +163,83 @@ export default function FieldMap({ orgId, fields, isEditor }: { orgId: string; f
     router.refresh();
   }
 
+  async function searchAddress(e: React.FormEvent) {
+    e.preventDefault();
+    if (!searchText.trim()) return;
+    setSearching(true);
+    setError(null);
+    setSearchResults([]);
+    try {
+      // Free OpenStreetMap geocoding — no API key. Usage-policy-friendly: one request per search,
+      // capped results, identifying itself via a proper User-Agent-equivalent (the browser's own
+      // Referer header covers this for normal, low-volume use like a single farm's map page).
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(searchText.trim())}`
+      );
+      if (!res.ok) throw new Error("Address search failed");
+      const results: SearchResult[] = await res.json();
+      if (results.length === 0) setError("No matches found for that address.");
+      setSearchResults(results);
+    } catch (err) {
+      setError(errorMessage(err, "Could not search for that address"));
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  function pickSearchResult(r: SearchResult) {
+    const target: [number, number] = [Number(r.lat), Number(r.lon)];
+    setFlyTarget(target);
+    setSearchPin(target);
+    setSearchResults([]);
+    setSearchText(r.display_name);
+  }
+
+  async function useSearchPinForField() {
+    if (!searchPin || !selectedFieldId) return;
+    await savePin(searchPin[0], searchPin[1]);
+    setSearchPin(null);
+  }
+
   return (
     <div className="space-y-3">
+      <div className="card p-4">
+        <form onSubmit={searchAddress} className="flex flex-wrap items-center gap-2">
+          <input
+            className="input flex-1 min-w-[16rem]"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            placeholder="Search an address or place — e.g. 123 County Rd, Sulphur, OK"
+          />
+          <button className="btn-secondary !py-1.5 text-sm" type="submit" disabled={searching}>
+            {searching ? "Searching…" : "Search"}
+          </button>
+        </form>
+        {searchResults.length > 0 && (
+          <div className="mt-2 divide-y divide-stone-100 border border-stone-200 rounded-lg overflow-hidden">
+            {searchResults.map((r, i) => (
+              <button
+                key={i}
+                type="button"
+                className="w-full text-left px-3 py-2 text-sm hover:bg-stone-50 text-stone-600"
+                onClick={() => pickSearchResult(r)}
+              >
+                {r.display_name}
+              </button>
+            ))}
+          </div>
+        )}
+        {searchPin && isEditor && selectedFieldId && (
+          <div className="mt-2 flex items-center gap-2 text-sm">
+            <span className="text-stone-500">Found it — drop a pin here for the selected field?</span>
+            <button className="btn-primary !py-1 !px-2 text-xs" onClick={useSearchPinForField} disabled={saving}>
+              {saving ? "Saving…" : "Use this location"}
+            </button>
+            <button className="btn-secondary !py-1 !px-2 text-xs" onClick={() => setSearchPin(null)}>Dismiss</button>
+          </div>
+        )}
+      </div>
+
       {isEditor && (
         <div className="card p-4 flex flex-wrap items-center gap-3">
           <select className="input !w-auto" value={selectedFieldId} onChange={(e) => setSelectedFieldId(e.target.value)}>
@@ -185,10 +279,13 @@ export default function FieldMap({ orgId, fields, isEditor }: { orgId: string; f
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           {isEditor && mode !== "none" && <ClickHandler onClick={handleMapClick} />}
+          <FlyTo target={flyTarget} />
 
           {fieldsWithLocation.map((f, i) => (
             <Marker key={f.id} position={[f.map_lat!, f.map_lng!]} icon={defaultIcon} />
           ))}
+
+          {searchPin && <Marker position={searchPin} icon={defaultIcon} opacity={0.7} />}
 
           {fieldsWithBoundary.map((f, i) => (
             <Polygon
