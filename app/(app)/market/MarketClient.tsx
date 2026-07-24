@@ -93,7 +93,15 @@ export default function MarketClient({ orgId, watchlist, isEditor }: { orgId: st
 
   const isPinned = (slug: string) => watchlist.some((w) => w.report_slug === slug);
 
-  const columns = rows.length > 0 ? Object.keys(rows[0]).slice(0, 8) : [];
+  // USDA reports don't return a fixed schema — which fields exist (and their order) varies by
+  // report, and the price/commodity fields aren't reliably first. The old version only showed the
+  // first 8 keys of the first row, which for many reports meant nothing but report/office metadata
+  // (report_date, office_name, etc.) ever showed up and the actual prices were silently cut off.
+  // Fix: union the keys across every row (in case rows have slightly different fields) and show
+  // everything — the table already scrolls horizontally, so there's no need to truncate.
+  const columns: string[] = rows.length > 0
+    ? Array.from(rows.reduce((set: Set<string>, row) => { Object.keys(row).forEach((k) => set.add(k)); return set; }, new Set<string>()))
+    : [];
 
   return (
     <div className="space-y-4">
