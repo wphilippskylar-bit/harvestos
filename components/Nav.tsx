@@ -33,6 +33,8 @@ export const BASE_NAV = [
   { href: "/environmental", label: "Environment Log", requires: "microgreens" },
   { href: "/sops", label: "SOPs" },
   { href: "/goals", label: "Goals" },
+  { href: "/import", label: "Import Data" },
+  { href: "/export", label: "Export Data" },
   { href: "/settings", label: "Settings" },
 ];
 

@@ -590,6 +590,23 @@ failing silently — everything else in the app works normally either way.
   one-off planned tasks.
 - Run `0024_schedule_sops.sql` after `0023_dashboard_prefs.sql`.
 
+## Import Data / Export Data — new nav tabs, no migration needed
+
+- **"Import Data"** — bring in an existing spreadsheet instead of hand-entering everything.
+  Covers Crops, Batches, Fields, Animals, Purchases, and Sales — pick which one, upload any CSV
+  (export your spreadsheet as CSV first — File → Download → CSV in Google Sheets, Save As → CSV in
+  Excel), and match your spreadsheet's columns to Harvest OS's fields. Doesn't require your CSV to
+  already use Harvest OS's column names — matching columns that look similar (e.g. a header of
+  "Crop Name" or "crop_name") are auto-detected and pre-filled, and anything else you match by hand
+  with a dropdown. Shows a live preview of the first 3 rows before you commit, then imports in
+  batches with a per-row error summary — a bad row doesn't block the good ones.
+- **"Export Data"** — the reverse: download any of the same six record types as a CSV, useful for
+  backups or moving data somewhere else. Uses the exact same column layout as Import, so an export
+  from one farm's account can be re-imported into another (or the same one) cleanly.
+- Both are plain CSV — no new database columns or migration. Built on `papaparse` for parsing
+  (handles quoted commas, mismatched line endings, etc. far more reliably than a hand-rolled
+  splitter would).
+
 ## Installed app not updating after a deploy
 
 If you (or a team member) installed Harvest OS to a phone or desktop home screen and it kept
