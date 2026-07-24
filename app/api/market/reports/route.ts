@@ -34,6 +34,12 @@ export async function GET(request: NextRequest) {
   }
 
   const q = (request.nextUrl.searchParams.get("q") || "").trim().toLowerCase();
+  // Multi-word queries (e.g. "Fruits and Vegetables") were being matched as one exact phrase, but
+  // USDA's actual report titles vary in wording — "Fruit & Vegetable", "Fruit and Vegetable"
+  // (singular), etc. — so an exact-phrase substring match came back empty even though matching
+  // reports exist. Split into words and require each word to appear somewhere in the haystack
+  // (in any order), which is far more forgiving and matches how people actually search.
+  const terms = q.split(/\s+/).filter(Boolean);
 
   try {
     const auth = Buffer.from(`${apiKey}:`).toString("base64");
@@ -47,13 +53,20 @@ export async function GET(request: NextRequest) {
     const data = await res.json();
     const all = Array.isArray(data) ? data : Array.isArray(data?.results) ? data.results : [];
 
-    const matched = q
+    const matched = terms.length > 0
       ? all.filter((r: any) => {
-          const haystack = [r.report_title, r.report_name, r.slug_name, r.commodity, r.office_name]
+          const haystack = [
+            r.report_title, r.report_name, r.slug_name, r.commodity,
+            r.category, r.market_types, r.office_name, r.office_city, r.office_state,
+          ]
             .filter(Boolean)
+            .flat() // market_types may be an array
             .join(" ")
-            .toLowerCase();
-          return haystack.includes(q);
+            .toLowerCase()
+            .replace(/&/g, "and"); // normalize "Fruit & Vegetable" vs "Fruit and Vegetable"
+          // Cheap singular/plural tolerance — "Fruits" should still match a title that says
+          // "Fruit", and vice versa — without a full stemming library.
+          return terms.every((t) => haystack.includes(t) || (t.endsWith("s") && t.length > 3 && haystack.includes(t.slice(0, -1))));
         })
       : all;
 
