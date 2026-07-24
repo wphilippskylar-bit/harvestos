@@ -529,6 +529,22 @@ failing silently — everything else in the app works normally either way.
   The four KPI tiles at the very top (revenue, costs, trays, channels) always stay put.
 - Run `0023_dashboard_prefs.sql` after `0022_unit_prefs.sql`.
 
+## Signup now asks what you grow/raise, and offers to pin market prices for you
+
+- **"What do you grow or raise?"** is now part of account creation, not just something you find
+  later in Settings. New accounts pick their operation type(s) right on the signup form — same
+  options as Settings (Microgreens, Outdoor field crops, Greenhouse/Indoor, Livestock) — and the
+  right nav tabs show up immediately instead of everyone starting as microgreens-only. Still fully
+  editable later in Settings, same as before.
+- **Optional auto-pin for Market Prices** — a checkbox on signup (checked by default) that, based
+  on what you picked, searches USDA's live reports and pins the ones that are actually relevant
+  (e.g. picking Livestock pins Feeder Cattle and Slaughter Cattle; Outdoor field crops pins Hay and
+  Fruit). This is best-effort — if `USDA_MARS_API_KEY` isn't configured yet, it just skips silently
+  rather than blocking account creation, and everything it would've pinned is still just a search
+  away on the Market Prices page.
+- No new migration — this only changes what the signup form does with columns that already exist
+  (`organizations.operation_types`, `market_watchlist`).
+
 ## Installed app not updating after a deploy
 
 If you (or a team member) installed Harvest OS to a phone or desktop home screen and it kept

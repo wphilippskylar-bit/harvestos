@@ -3,6 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { autoPinMarketReports } from "@/lib/market-autopin";
+
+const OPERATION_TYPE_OPTIONS = [
+  { key: "microgreens", label: "Microgreens (trays)" },
+  { key: "field_crop", label: "Outdoor field crops" },
+  { key: "cea", label: "Greenhouse, indoor, or hydroponic crops" },
+  { key: "livestock", label: "Livestock / ranching" },
+];
 
 export default function LoginPage() {
   const router = useRouter();
@@ -11,8 +19,18 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [orgName, setOrgName] = useState("");
+  const [operationTypes, setOperationTypes] = useState<string[]>(["microgreens"]);
+  const [autoPinMarket, setAutoPinMarket] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function toggleOperationType(key: string) {
+    setOperationTypes((prev) => {
+      const next = prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key];
+      // Keep at least one selected — this drives which nav tabs/modules show up on day one.
+      return next.length === 0 ? prev : next;
+    });
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -66,6 +84,18 @@ export default function LoginPage() {
             });
             if (orgErr) throw orgErr;
             await supabase.rpc("seed_org_defaults", { target_org: newOrgId });
+
+            // seed_org_defaults leaves operation_types at its default (["microgreens"]) — set it
+            // to whatever the signup questionnaire actually selected, so the right nav tabs/modules
+            // show up immediately instead of everyone starting as a microgreens-only farm and
+            // having to go find the toggle in Settings afterward.
+            await supabase.from("organizations").update({ operation_types: operationTypes }).eq("id", newOrgId);
+
+            // Best-effort: pin the USDA market reports relevant to what they picked. Doesn't block
+            // account creation if it fails (e.g. market pricing isn't configured yet).
+            if (autoPinMarket) {
+              await autoPinMarketReports(supabase, newOrgId, operationTypes);
+            }
           }
         }
         router.push("/dashboard");
@@ -117,6 +147,33 @@ export default function LoginPage() {
               <div>
                 <label className="label">Farm / company name</label>
                 <input className="input" value={orgName} onChange={(e) => setOrgName(e.target.value)} placeholder="Aiyahuta Craft Farm" required />
+              </div>
+            )}
+            {mode === "signup" && (
+              <div>
+                <label className="label">What do you grow or raise?</label>
+                <p className="text-xs text-stone-400 mb-2">Turns the matching tabs on — you can add or remove these anytime in Settings.</p>
+                <div className="flex flex-wrap gap-2">
+                  {OPERATION_TYPE_OPTIONS.map((opt) => {
+                    const on = operationTypes.includes(opt.key);
+                    return (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        onClick={() => toggleOperationType(opt.key)}
+                        className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
+                          on ? "bg-brand-700 text-white border-brand-700" : "bg-white text-stone-500 border-stone-300"
+                        }`}
+                      >
+                        {on ? "✓ " : ""}{opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <label className="flex items-center gap-2 text-xs text-stone-500 mt-3">
+                  <input type="checkbox" checked={autoPinMarket} onChange={(e) => setAutoPinMarket(e.target.checked)} />
+                  Pin relevant USDA market price reports for me based on what I picked above
+                </label>
               </div>
             )}
             <div>
