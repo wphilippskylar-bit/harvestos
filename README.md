@@ -545,6 +545,28 @@ failing silently — everything else in the app works normally either way.
 - No new migration — this only changes what the signup form does with columns that already exist
   (`organizations.operation_types`, `market_watchlist`).
 
+## Market search: "Fruits and Vegetables" actually returning results now
+
+- Root cause of the earlier fix not working: USDA doesn't use the words "fruit" or "vegetable"
+  anywhere in these report titles — their own official category is **"Specialty Crops"** (e.g.
+  "National Retail Report - Specialty Crops"). No amount of word-matching or plural tolerance was
+  ever going to find that, since the actual words just weren't in the data.
+- The "Fruits & vegetables" quick filter now searches "Specialty Crops" directly, and free-text
+  search maps "fruit," "fruits," "vegetable," "vegetables," "veggies," and "produce" to USDA's real
+  terminology, so typing what you'd actually search for still finds the right reports.
+
+## Frost/freeze alerts for Fields — free weather integration (no migration)
+
+- Fields with a pinned map location (from the Map feature, migration 0018) now get a frost/freeze
+  banner on the Fields page when NOAA's free public forecast (api.weather.gov — no API key, no
+  cost) shows a nighttime low at or below 36°F in the next 3 nights. Below 32°F is called out as a
+  hard freeze specifically.
+- Purely additive — no new columns, no new migration. Uses the `map_lat`/`map_lng` fields already
+  added for the Map feature and a new server-side proxy route (`/api/weather/forecast`) since
+  NOAA's API needs a descriptive User-Agent header that has to come from a server, not the browser.
+- US-only, since NOAA's National Weather Service API only covers the US — fine for now since that's
+  Harvest OS's whole audience.
+
 ## Installed app not updating after a deploy
 
 If you (or a team member) installed Harvest OS to a phone or desktop home screen and it kept

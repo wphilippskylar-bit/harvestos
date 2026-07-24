@@ -6,8 +6,8 @@
 
 const OPERATION_TYPE_QUERIES: Record<string, string[]> = {
   livestock: ["Feeder Cattle", "Slaughter Cattle"],
-  field_crop: ["Hay", "Fruit"],
-  cea: ["Fruit"],
+  field_crop: ["Hay", "Specialty Crops"],
+  cea: ["Specialty Crops"],
   // Microgreens don't have a dedicated USDA commodity report to pin — nothing to add here.
 };
 

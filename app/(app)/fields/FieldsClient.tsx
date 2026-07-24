@@ -7,6 +7,7 @@ import { EmptyState, StatusBadge } from "@/components/ui";
 import FieldForm from "@/components/forms/FieldForm";
 import PlantingForm from "@/components/forms/PlantingForm";
 import SoilTestForm from "@/components/forms/SoilTestForm";
+import FrostAlertBanner from "@/components/FrostAlertBanner";
 
 type Field = {
   id: string;
@@ -15,6 +16,8 @@ type Field = {
   field_rows: { id: string; label: string }[];
   plantings: { id: string; status: string }[];
   soil_tests: { id: string; test_date: string }[];
+  map_lat: number | null;
+  map_lng: number | null;
 };
 type Crop = { id: string; name: string; crop_family: string | null };
 
@@ -92,6 +95,7 @@ export default function FieldsClient({
 
   return (
     <div className="space-y-4">
+      <FrostAlertBanner fields={fields} />
       {isEditor && (
         showFieldForm
           ? <FieldForm orgId={orgId} areaUnit={areaUnit} onDone={() => setShowFieldForm(false)} />

@@ -23,7 +23,7 @@ const QUICK_FILTERS = [
   { label: "Slaughter cattle", q: "Slaughter Cattle" },
   { label: "Hogs", q: "Hogs" },
   { label: "Hay", q: "Hay" },
-  { label: "Fruits & vegetables", q: "Fruits and Vegetables" },
+  { label: "Fruits & vegetables", q: "Specialty Crops" }, // USDA's own category name — see route.ts
 ];
 
 export default function MarketClient({ orgId, watchlist, isEditor }: { orgId: string; watchlist: WatchlistItem[]; isEditor: boolean }) {

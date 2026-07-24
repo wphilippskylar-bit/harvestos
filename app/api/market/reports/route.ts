@@ -40,6 +40,16 @@ export async function GET(request: NextRequest) {
   // reports exist. Split into words and require each word to appear somewhere in the haystack
   // (in any order), which is far more forgiving and matches how people actually search.
   const terms = q.split(/\s+/).filter(Boolean);
+  // USDA doesn't title these reports "Fruit" or "Vegetable" at all — their own official category
+  // for produce is "Specialty Crops" (e.g. "National Retail Report - Specialty Crops"), which is
+  // why "Fruits and Vegetables" kept coming back empty no matter how forgiving the word-matching
+  // got: the words just aren't in the data. Map the terms people actually type to USDA's real
+  // terminology so the search finds what they mean, not just what they typed.
+  const SYNONYMS: Record<string, string[]> = {
+    fruit: ["specialty"], fruits: ["specialty"],
+    vegetable: ["specialty"], vegetables: ["specialty"], veggie: ["specialty"], veggies: ["specialty"],
+    produce: ["specialty"],
+  };
 
   try {
     const auth = Buffer.from(`${apiKey}:`).toString("base64");
@@ -64,9 +74,14 @@ export async function GET(request: NextRequest) {
             .join(" ")
             .toLowerCase()
             .replace(/&/g, "and"); // normalize "Fruit & Vegetable" vs "Fruit and Vegetable"
-          // Cheap singular/plural tolerance — "Fruits" should still match a title that says
-          // "Fruit", and vice versa — without a full stemming library.
-          return terms.every((t) => haystack.includes(t) || (t.endsWith("s") && t.length > 3 && haystack.includes(t.slice(0, -1))));
+          return terms.every((t) => {
+            if (haystack.includes(t)) return true;
+            // Cheap singular/plural tolerance — "Fruits" should still match a title that says
+            // "Fruit", and vice versa — without a full stemming library.
+            if (t.endsWith("s") && t.length > 3 && haystack.includes(t.slice(0, -1))) return true;
+            // Synonym fallback — e.g. "fruit"/"vegetable"/"produce" → USDA's actual "specialty" wording.
+            return (SYNONYMS[t] ?? []).some((syn) => haystack.includes(syn));
+          });
         })
       : all;
 
