@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Nav from "@/components/Nav";
 import SignOutButton from "@/components/SignOutButton";
-import { getOrgContext } from "@/lib/data";
+import { getOrgContext, getNavOrder } from "@/lib/data";
 import { DEMO_MODE } from "@/lib/demo-mode";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -33,9 +33,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     );
   }
 
+  const navOrder = await getNavOrder(ctx.userId, ctx.orgId);
+
   return (
     <div className="md:flex min-h-screen">
-      <Nav orgName={ctx.orgName} role={ctx.role} operationTypes={ctx.operationTypes} />
+      <Nav orgName={ctx.orgName} role={ctx.role} operationTypes={ctx.operationTypes} navOrder={navOrder} />
       <main className="flex-1 min-w-0">
         <div className="max-w-6xl mx-auto px-4 md:px-8 py-6 md:py-10">{children}</div>
       </main>

@@ -221,8 +221,9 @@ export default function CropForm({ orgId, crop, onDone }: { orgId: string; crop?
           <label className="label">Used for</label>
           <div className="flex gap-3 mt-2">
             {[
-              { key: "microgreens", label: "Microgreens (Batches)" },
+              { key: "microgreens", label: "Microgreens" },
               { key: "field_crop", label: "Field crop (Fields)" },
+              { key: "cea", label: "Greenhouse / Indoor / CEA" },
               { key: "commercial", label: "Commercial / wholesale scale" },
             ].map((opt) => (
               <label key={opt.key} className="flex items-center gap-1.5 text-sm text-stone-600">

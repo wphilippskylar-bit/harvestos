@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import type { OrgContext } from "@/lib/data";
 import { pushSupported, getExistingPushSubscription, enablePushNotifications, disablePushNotifications } from "@/lib/push";
+import NavOrderSettings from "@/components/NavOrderSettings";
 
 const PLAN_TIERS: Record<string, { label: string; price: string; seats: string }> = {
   free: { label: "Free (you)", price: "$0", seats: "Up to 3 seats" },
@@ -27,10 +28,12 @@ export default function SettingsClient({
   ctx,
   members,
   invites,
+  navOrder,
 }: {
   ctx: OrgContext;
   members: Member[];
   invites: Invite[];
+  navOrder?: string[] | null;
 }) {
   const supabase = createClient();
   const router = useRouter();
@@ -201,8 +204,9 @@ export default function SettingsClient({
         </p>
         <div className="flex flex-wrap gap-2">
           {[
-            { key: "microgreens", label: "Microgreens / indoor trays (Batches)" },
-            { key: "field_crop", label: "Field, high tunnel, or commercial crops (Fields)" },
+            { key: "microgreens", label: "Microgreens (trays)" },
+            { key: "field_crop", label: "Outdoor field crops (Fields)" },
+            { key: "cea", label: "Greenhouse, indoor, or hydroponic crops (Greenhouse / Indoor)" },
             { key: "livestock", label: "Livestock / ranching (Livestock)" },
           ].map((opt) => {
             const on = operationTypes.includes(opt.key);
@@ -263,6 +267,9 @@ export default function SettingsClient({
           )}
         </div>
       </div>
+
+      {/* Nav customization */}
+      <NavOrderSettings orgId={ctx.orgId} userId={ctx.userId} operationTypes={ctx.operationTypes ?? ["microgreens"]} navOrder={navOrder ?? null} />
 
       {/* Push notifications */}
       <div className="card p-5">

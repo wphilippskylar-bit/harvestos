@@ -137,6 +137,35 @@ export async function getFields(orgId: string) {
   return data ?? [];
 }
 
+export async function getCeaAreas(orgId: string) {
+  if (DEMO_MODE) return [];
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("cea_areas")
+    .select("*, cea_area_rows(*), cea_plantings(id, status, crop_name_snapshot, planted_date)")
+    .eq("org_id", orgId)
+    .order("name");
+  return data ?? [];
+}
+
+export async function getCeaEnvironmentLogs(areaId: string) {
+  if (DEMO_MODE) return [];
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("cea_environment_logs")
+    .select("*")
+    .eq("area_id", areaId)
+    .order("log_date", { ascending: false });
+  return data ?? [];
+}
+
+export async function getCeaCrops(orgId: string) {
+  if (DEMO_MODE) return [];
+  const supabase = createClient();
+  const { data } = await supabase.from("crops").select("*").eq("org_id", orgId).contains("applicable_to", ["cea"]).order("name");
+  return data ?? [];
+}
+
 export async function getFieldCropCrops(orgId: string) {
   if (DEMO_MODE) return [];
   const supabase = createClient();
@@ -299,6 +328,18 @@ export async function getEquipmentDepreciation(orgId: string) {
     .eq("org_id", orgId)
     .order("purchase_date", { ascending: false });
   return data ?? [];
+}
+
+export async function getNavOrder(userId: string | null, orgId: string) {
+  if (DEMO_MODE || !userId || !orgId) return null;
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("user_nav_prefs")
+    .select("nav_order")
+    .eq("user_id", userId)
+    .eq("org_id", orgId)
+    .maybeSingle();
+  return (data?.nav_order as string[] | undefined) ?? null;
 }
 
 export async function getMarketWatchlist(orgId: string) {

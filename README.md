@@ -54,8 +54,8 @@ connect them yourself. Here's the whole path, roughly 15 minutes:
    `0010_push_and_harvest_photos.sql`, then `0011_field_crops.sql`, then `0012_livestock.sql`, then
    `0013_grazing.sql`, then `0014_platform_admin.sql`, then `0015_profitability.sql`, then
    `0016_farm_inputs_labor_tax.sql`, then `0017_equipment_livestock_purchases.sql`, then
-   `0018_field_map.sql`, then `0019_market_watchlist.sql` — **in that exact order**, each as its own
-   run. (They build on each other; running out of order will error.)
+   `0018_field_map.sql`, then `0019_market_watchlist.sql`, then `0020_nav_prefs.sql` — **in that
+   exact order**, each as its own run. (They build on each other; running out of order will error.)
 4. If a run errors, read the message — it's almost always "already exists" from re-running a step
    twice, which is safe to ignore, or a typo from copy/paste truncation. Re-copy the full file if
    unsure.
@@ -449,6 +449,53 @@ failing silently — everything else in the app works normally either way.
 - Data refreshes roughly every 15 minutes (results are cached briefly to stay well within USDA's
   fair-use limits) — this is real-time-enough for market awareness, not built for high-frequency
   trading.
+
+## Dashboard, nav order, and a Market Prices search fix (migration 0020)
+
+- **Dashboard is now clickable everywhere** — every stat tile and chart card links to the page it
+  summarizes (Total revenue → Sales, Total costs → Purchases, Trays in production → Batches, Sales
+  channels → Sales Channels, both charts and Goals → Profitability/Channels/Goals).
+- **Pinned Profitability and Market Prices** now show as their own cards on the Dashboard — the
+  Profitability card shows the latest month's revenue/cost/profit, the Market Prices card lists
+  your pinned USDA reports (empty state prompts you to pin some from the Market Prices page).
+  Both link straight to their full page.
+- **Nav reordered by default** — grouped by theme now (production tabs, then money tabs, then
+  reference tabs) instead of the order features happened to ship in.
+- **Customizable nav order** — new "Customize navigation" section in Settings lets each person
+  reorder their own left nav with up/down buttons (Dashboard always stays pinned first). It's
+  per-user, not per-farm — everyone on the team can have their own layout. "Reset to default" puts
+  it back to the theme-grouped order.
+- **Market Prices search fixed** — the original version tried to filter USDA's report list by
+  commodity using a query-string parameter that, it turns out, USDA only documents for filtering
+  *within* a single report's data rows, not for searching the report index itself. That's why
+  searches often came back empty or wrong. Fixed by fetching the full report index (cached 6h,
+  since it rarely changes) and matching your search term against it directly — much more reliable.
+
+## Greenhouse / Indoor — a separate module for CEA growing, and Batches renamed to Microgreens (migration 0021)
+
+- **"Batches" is now "Microgreens"** in the left nav — same page, same data, just a clearer name now
+  that indoor/greenhouse growing has its own dedicated module instead of being lumped in.
+- **New "Greenhouse / Indoor" module** for controlled-environment agriculture (CEA) — greenhouse,
+  high tunnel run as a climate-controlled space, indoor vertical farm, or hydroponic setups. It's a
+  genuinely separate set of tables from both Batches (microgreens trays) and Fields (open field
+  crops), not a relabeling of either: `cea_areas` (your greenhouses/rooms/systems), `cea_area_rows`
+  (optional row/bed subdivisions within an area), and `cea_plantings` (one crop, in one area/row,
+  over one growing cycle — status planted/growing/harvested/failed, plus yield).
+- **Its own environment log** — `cea_environment_logs`, separate from the microgreens Environment
+  Log. A single shared log wasn't capturing what every grower needed, so CEA's log adds CO2 (ppm)
+  and nutrient EC on top of the temperature/humidity/VPD/light fields the microgreens log already
+  tracks. The Environment Log nav item is now scoped to farms with microgreens turned on; CEA farms
+  log readings from within the Greenhouse / Indoor page instead.
+- **Cost/revenue attribution** — Purchases, Sales, and Labor entries can optionally be tagged to a
+  CEA area (same pattern as Fields), which feeds a new `cea_margin` view so Profitability can show
+  cost/revenue/profit per greenhouse or indoor area, same as it already does for fields and animals.
+- **Crop Library** — crops can now be tagged "Greenhouse / Indoor / CEA" alongside (or instead of)
+  Microgreens / Field crop / Commercial, so the crop picker in the Greenhouse / Indoor page only
+  offers crops you've actually marked as grown that way.
+- **Settings → "What do you grow or raise?"** has a new "Greenhouse, indoor, or hydroponic crops"
+  toggle that turns the module on/off, same as the other operation types. Turning it off just hides
+  the nav item — nothing is deleted, so it's safe to toggle if you're not sure yet.
+- Run `0021_cea_module.sql` after `0020_nav_prefs.sql`.
 
 ## Installed app not updating after a deploy
 

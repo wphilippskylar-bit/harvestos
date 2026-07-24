@@ -1,0 +1,228 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { DEMO_MODE } from "@/lib/demo-mode";
+import { EmptyState } from "@/components/ui";
+import CeaAreaForm from "@/components/forms/CeaAreaForm";
+import CeaPlantingForm from "@/components/forms/CeaPlantingForm";
+import CeaEnvLogForm from "@/components/forms/CeaEnvLogForm";
+
+type Planting = { id: string; status: string; crop_name_snapshot: string | null; planted_date: string };
+type Row = { id: string; label: string };
+type Area = {
+  id: string;
+  name: string;
+  area_type: string;
+  sq_ft: number | null;
+  notes: string | null;
+  cea_area_rows: Row[];
+  cea_plantings: Planting[];
+};
+type Crop = { id: string; name: string };
+type EnvLog = {
+  id: string;
+  log_date: string;
+  temperature_f: number | null;
+  humidity_pct: number | null;
+  co2_ppm: number | null;
+  nutrient_ec: number | null;
+  notes: string | null;
+};
+
+const AREA_TYPE_LABELS: Record<string, string> = {
+  greenhouse: "Greenhouse",
+  high_tunnel: "High tunnel (climate-controlled)",
+  indoor_vertical: "Indoor vertical farm",
+  hydroponic: "Hydroponic",
+  other: "Other",
+};
+
+export default function CeaClient({
+  orgId, role, areas, crops = [],
+}: {
+  orgId: string;
+  role: string;
+  areas: Area[];
+  crops?: Crop[];
+}) {
+  const supabase = createClient();
+  const router = useRouter();
+  const isEditor = role === "owner" || role === "admin" || role === "member";
+  const [showAreaForm, setShowAreaForm] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showPlantingForm, setShowPlantingForm] = useState<string | null>(null);
+  const [showLogForm, setShowLogForm] = useState<string | null>(null);
+  const [envLogs, setEnvLogs] = useState<Record<string, EnvLog[]>>({});
+
+  async function deleteArea(id: string, name: string) {
+    if (DEMO_MODE) return;
+    if (!window.confirm(`Delete "${name}"? This can't be undone — its plantings and environment log will be deleted too.`)) return;
+    await supabase.from("cea_areas").delete().eq("id", id);
+    router.refresh();
+  }
+
+  async function loadEnvLogs(areaId: string) {
+    if (DEMO_MODE) { setEnvLogs((l) => ({ ...l, [areaId]: [] })); return; }
+    const { data } = await supabase
+      .from("cea_environment_logs")
+      .select("*")
+      .eq("area_id", areaId)
+      .order("log_date", { ascending: false });
+    setEnvLogs((l) => ({ ...l, [areaId]: data ?? [] }));
+  }
+
+  function toggleExpand(areaId: string) {
+    if (expandedId === areaId) { setExpandedId(null); return; }
+    setExpandedId(areaId);
+    setShowPlantingForm(null);
+    setShowLogForm(null);
+    if (!envLogs[areaId]) loadEnvLogs(areaId);
+  }
+
+  if (areas.length === 0 && !showAreaForm) {
+    return (
+      <div className="space-y-4">
+        <EmptyState
+          title="No greenhouse / indoor areas yet"
+          hint="Add an area (greenhouse, high tunnel, indoor vertical, hydroponic…) to start tracking plantings and environment readings."
+        />
+        {isEditor && (
+          <div className="flex justify-center">
+            <button className="btn-primary" onClick={() => setShowAreaForm(true)}>Add your first area</button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {isEditor && (
+        showAreaForm
+          ? <CeaAreaForm orgId={orgId} onDone={() => setShowAreaForm(false)} />
+          : <div className="flex justify-end"><button className="btn-primary" onClick={() => setShowAreaForm(true)}>+ Add area</button></div>
+      )}
+
+      {areas.map((a) => {
+        const expanded = expandedId === a.id;
+        const logs = envLogs[a.id];
+        const activePlantings = a.cea_plantings?.filter((p) => p.status !== "harvested" && p.status !== "failed") ?? [];
+        return (
+          <div key={a.id} className="card overflow-hidden">
+            <div className="w-full flex items-center justify-between px-5 py-4 hover:bg-stone-50">
+              <button className="flex-1 text-left" onClick={() => toggleExpand(a.id)}>
+                <div className="font-semibold text-stone-800 flex items-center gap-2">
+                  {a.name}
+                  <span className="badge bg-brand-700/10 text-brand-700">{AREA_TYPE_LABELS[a.area_type] ?? a.area_type}</span>
+                </div>
+                <div className="text-xs text-stone-400 mt-0.5">
+                  {a.sq_ft ? `${a.sq_ft} sq ft · ` : ""}
+                  {activePlantings.length} active planting{activePlantings.length === 1 ? "" : "s"}
+                </div>
+              </button>
+              <div className="flex items-center gap-3 shrink-0">
+                {isEditor && (
+                  <button
+                    className="text-xs font-medium text-red-600 hover:underline"
+                    onClick={() => deleteArea(a.id, a.name)}
+                  >
+                    Delete
+                  </button>
+                )}
+                <button className="text-stone-400 text-sm" onClick={() => toggleExpand(a.id)}>
+                  {expanded ? "Hide" : "View"}
+                </button>
+              </div>
+            </div>
+
+            {expanded && (
+              <div className="border-t border-stone-100 px-5 py-4 space-y-5">
+                {a.notes && <p className="text-xs text-stone-400">{a.notes}</p>}
+
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-semibold text-stone-700">Plantings</h3>
+                    {isEditor && (
+                      <button
+                        className="text-xs font-medium text-brand-700 hover:underline"
+                        onClick={() => setShowPlantingForm(showPlantingForm === a.id ? null : a.id)}
+                      >
+                        + Add planting
+                      </button>
+                    )}
+                  </div>
+                  {showPlantingForm === a.id && (
+                    <CeaPlantingForm
+                      orgId={orgId}
+                      areaId={a.id}
+                      rows={a.cea_area_rows}
+                      crops={crops}
+                      onDone={() => { setShowPlantingForm(null); router.refresh(); }}
+                    />
+                  )}
+                  {!a.cea_plantings || a.cea_plantings.length === 0 ? (
+                    <p className="text-xs text-stone-400">No plantings logged yet.</p>
+                  ) : (
+                    <div className="divide-y divide-stone-100">
+                      {a.cea_plantings.map((p) => (
+                        <div key={p.id} className="py-2 text-sm text-stone-600 flex items-center justify-between">
+                          <span>
+                            <span className="font-medium text-stone-700">{p.crop_name_snapshot ?? "Untitled"}</span>
+                            {" — planted "}{p.planted_date}
+                          </span>
+                          <span className="badge bg-stone-100 text-stone-600 capitalize">{p.status}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-semibold text-stone-700">Environment log</h3>
+                    {isEditor && (
+                      <button
+                        className="text-xs font-medium text-brand-700 hover:underline"
+                        onClick={() => setShowLogForm(showLogForm === a.id ? null : a.id)}
+                      >
+                        + Log reading
+                      </button>
+                    )}
+                  </div>
+                  {showLogForm === a.id && (
+                    <CeaEnvLogForm
+                      orgId={orgId}
+                      areaId={a.id}
+                      plantings={a.cea_plantings}
+                      onDone={() => { setShowLogForm(null); loadEnvLogs(a.id); }}
+                    />
+                  )}
+                  {!logs ? (
+                    <p className="text-xs text-stone-400">Loading…</p>
+                  ) : logs.length === 0 ? (
+                    <p className="text-xs text-stone-400">No environment readings logged yet.</p>
+                  ) : (
+                    <div className="divide-y divide-stone-100">
+                      {logs.map((l) => (
+                        <div key={l.id} className="py-2 text-sm text-stone-600">
+                          <span className="font-medium text-stone-700">{l.log_date}</span>
+                          {l.temperature_f != null && <span> · {l.temperature_f}°F</span>}
+                          {l.humidity_pct != null && <span> · {l.humidity_pct}% RH</span>}
+                          {l.co2_ppm != null && <span> · {l.co2_ppm} ppm CO2</span>}
+                          {l.nutrient_ec != null && <span> · EC {l.nutrient_ec}</span>}
+                          {l.notes && <div className="text-xs text-stone-400 mt-0.5">{l.notes}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}

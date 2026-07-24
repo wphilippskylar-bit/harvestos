@@ -6,38 +6,61 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
 
-const BASE_NAV = [
+// Default order, grouped by theme (production → money → reference) — this is what a fresh
+// account sees, and what a per-user custom order (see Settings → "Customize navigation") falls
+// back to for any items it doesn't mention. Dashboard is never included here — it's always
+// rendered first, unconditionally, in the component below.
+export const BASE_NAV = [
   { href: "/dashboard", label: "Dashboard" },
-  { href: "/batches", label: "Batches", requires: "microgreens" },
+  // Production
+  { href: "/batches", label: "Microgreens", requires: "microgreens" },
+  { href: "/cea", label: "Greenhouse / Indoor", requires: "cea" },
   { href: "/fields", label: "Fields", requires: "field_crop" },
   { href: "/map", label: "Map", requires: ["field_crop", "livestock"] },
   { href: "/livestock", label: "Livestock", requires: "livestock" },
   { href: "/compliance", label: "Compliance", requires: "livestock" },
+  // Money
   { href: "/inventory", label: "Inventory" },
   { href: "/purchases", label: "Purchases" },
   { href: "/sales", label: "Sales" },
   { href: "/labor", label: "Labor" },
   { href: "/profitability", label: "Profitability" },
   { href: "/market", label: "Market Prices" },
+  // Reference
   { href: "/channels", label: "Sales Channels" },
   { href: "/crops", label: "Crop Library" },
-  { href: "/environmental", label: "Environment Log" },
+  { href: "/environmental", label: "Environment Log", requires: "microgreens" },
   { href: "/goals", label: "Goals" },
   { href: "/settings", label: "Settings" },
 ];
 
 export default function Nav({
-  orgName, role, operationTypes = ["microgreens"],
-}: { orgName: string; role: string; operationTypes?: string[] }) {
+  orgName, role, operationTypes = ["microgreens"], navOrder,
+}: { orgName: string; role: string; operationTypes?: string[]; navOrder?: string[] | null }) {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const supabase = createClient();
-  const NAV = BASE_NAV.filter((item) => {
+
+  const visible = BASE_NAV.filter((item) => {
+    if (item.href === "/dashboard") return false; // rendered separately, always first
     if (!item.requires) return true;
     const required = Array.isArray(item.requires) ? item.requires : [item.requires];
     return required.some((r) => operationTypes.includes(r));
   });
+
+  // Apply the user's custom order (if any): items named in navOrder come first, in that order;
+  // anything not mentioned (new features, or items hidden the last time they saved) falls back to
+  // its normal position at the end, in the default relative order — so a newly shipped tab always
+  // shows up somewhere sane instead of vanishing until the user re-saves their order.
+  const NAV = navOrder && navOrder.length > 0
+    ? [
+        ...navOrder.map((href) => visible.find((i) => i.href === href)).filter((i): i is typeof visible[number] => !!i),
+        ...visible.filter((i) => !navOrder.includes(i.href)),
+      ]
+    : visible;
+
+  const dashboard = BASE_NAV[0];
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -69,6 +92,16 @@ export default function Nav({
             )}
           </div>
           <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
+            <Link
+              href={dashboard.href}
+              onClick={() => setOpen(false)}
+              className={`block rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                pathname === dashboard.href ? "bg-brand-700 text-white" : "text-stone-600 hover:bg-stone-100"
+              }`}
+            >
+              {dashboard.label}
+            </Link>
+            <div className="h-px bg-stone-100 my-2" />
             {NAV.map((item) => {
               const active = pathname === item.href;
               return (

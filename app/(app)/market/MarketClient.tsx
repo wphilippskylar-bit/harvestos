@@ -39,12 +39,14 @@ export default function MarketClient({ orgId, watchlist, isEditor }: { orgId: st
   const [activeTitle, setActiveTitle] = useState<string>("");
   const [rows, setRows] = useState<any[]>([]);
   const [loadingRows, setLoadingRows] = useState(false);
+  const [searched, setSearched] = useState(false);
 
   async function search(q: string) {
     setQuery(q);
     setSearching(true);
     setError(null);
     setNotConfigured(false);
+    setSearched(true);
     try {
       const res = await fetch(`/api/market/reports?q=${encodeURIComponent(q)}`);
       const data = await res.json();
@@ -148,6 +150,16 @@ export default function MarketClient({ orgId, watchlist, isEditor }: { orgId: st
         </form>
         {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
       </div>
+
+      {searched && !searching && !notConfigured && reports.length === 0 && !error && (
+        <div className="card p-5">
+          <p className="text-sm text-stone-400">
+            No USDA reports matched &quot;{query}&quot; — try a broader term (e.g. just the animal
+            or crop name, like &quot;cattle&quot; or &quot;tomatoes&quot;, rather than a full report
+            name).
+          </p>
+        </div>
+      )}
 
       {reports.length > 0 && (
         <div className="card overflow-hidden">
