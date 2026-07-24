@@ -56,6 +56,9 @@ export default function SettingsClient({
   const [areaUnit, setAreaUnit] = useState<string>(ctx.areaUnit ?? "acres");
   const [savingAreaUnit, setSavingAreaUnit] = useState(false);
 
+  const [scheduleNotifyMode, setScheduleNotifyMode] = useState<string>(ctx.scheduleNotifyMode ?? "digest");
+  const [savingScheduleNotifyMode, setSavingScheduleNotifyMode] = useState(false);
+
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("member");
   const [invitingBusy, setInvitingBusy] = useState(false);
@@ -126,6 +129,16 @@ export default function SettingsClient({
     setSavingAreaUnit(true);
     await supabase.from("organizations").update({ area_unit: next }).eq("id", ctx.orgId);
     setSavingAreaUnit(false);
+    router.refresh();
+  }
+
+  async function changeScheduleNotifyMode(next: string) {
+    if (!isEditor) return;
+    setScheduleNotifyMode(next);
+    if (DEMO_MODE) return;
+    setSavingScheduleNotifyMode(true);
+    await supabase.from("organizations").update({ schedule_notify_mode: next }).eq("id", ctx.orgId);
+    setSavingScheduleNotifyMode(false);
     router.refresh();
   }
 
@@ -289,6 +302,26 @@ export default function SettingsClient({
             </select>
           </div>
         </div>
+      </div>
+
+      {/* Schedule notifications */}
+      <div className="card p-5">
+        <h2 className="font-semibold text-stone-800 mb-1">Schedule notifications</h2>
+        <p className="text-xs text-stone-500 mb-3">
+          How reminders from the Schedule tab reach you as push notifications (each schedule item
+          also has its own on/off switch and lead time — this controls how the ones that are on get
+          delivered).
+        </p>
+        <select
+          className="input max-w-xs"
+          value={scheduleNotifyMode}
+          disabled={!isEditor || savingScheduleNotifyMode}
+          onChange={(e) => changeScheduleNotifyMode(e.target.value)}
+        >
+          <option value="digest">Bundle into the daily digest (with low-stock/harvest alerts)</option>
+          <option value="individual">Send each schedule item as its own notification</option>
+          <option value="off">Don&apos;t notify for schedule items</option>
+        </select>
       </div>
 
       {/* Ag tax exemption */}

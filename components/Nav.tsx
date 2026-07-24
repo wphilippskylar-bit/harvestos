@@ -19,6 +19,7 @@ export const BASE_NAV = [
   { href: "/map", label: "Map", requires: ["field_crop", "livestock"] },
   { href: "/livestock", label: "Livestock", requires: "livestock" },
   { href: "/compliance", label: "Compliance", requires: "livestock" },
+  { href: "/schedule", label: "Schedule" },
   // Money
   { href: "/inventory", label: "Inventory" },
   { href: "/purchases", label: "Purchases" },
@@ -30,6 +31,7 @@ export const BASE_NAV = [
   { href: "/channels", label: "Sales Channels" },
   { href: "/crops", label: "Crop Library" },
   { href: "/environmental", label: "Environment Log", requires: "microgreens" },
+  { href: "/sops", label: "SOPs" },
   { href: "/goals", label: "Goals" },
   { href: "/settings", label: "Settings" },
 ];

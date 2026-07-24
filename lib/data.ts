@@ -18,6 +18,7 @@ export type OrgContext = {
   agTaxExempt?: boolean;
   weightUnit?: string;
   areaUnit?: string;
+  scheduleNotifyMode?: string;
 };
 
 export async function getOrgContext(): Promise<OrgContext> {
@@ -36,6 +37,7 @@ export async function getOrgContext(): Promise<OrgContext> {
       agTaxExempt: false,
       weightUnit: "oz",
       areaUnit: "acres",
+      scheduleNotifyMode: "digest",
     };
   }
   const supabase = createClient();
@@ -44,14 +46,14 @@ export async function getOrgContext(): Promise<OrgContext> {
 
   const { data: membership } = await supabase
     .from("memberships")
-    .select("org_id, role, organizations(name, plan_tier, seat_limit, batch_id_prefix, operation_types, ag_tax_exempt, weight_unit, area_unit)")
+    .select("org_id, role, organizations(name, plan_tier, seat_limit, batch_id_prefix, operation_types, ag_tax_exempt, weight_unit, area_unit, schedule_notify_mode)")
     .eq("user_id", user.id)
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
 
   if (!membership) return { orgId: "", orgName: "", role: "", userId: user.id, isDemo: false, userEmail: user.email };
-  const org = membership.organizations as unknown as { name: string; plan_tier: string; seat_limit: number; batch_id_prefix: string; operation_types: string[]; ag_tax_exempt: boolean; weight_unit: string; area_unit: string } | null;
+  const org = membership.organizations as unknown as { name: string; plan_tier: string; seat_limit: number; batch_id_prefix: string; operation_types: string[]; ag_tax_exempt: boolean; weight_unit: string; area_unit: string; schedule_notify_mode: string } | null;
   return {
     orgId: membership.org_id,
     orgName: org?.name ?? "",
@@ -66,6 +68,7 @@ export async function getOrgContext(): Promise<OrgContext> {
     agTaxExempt: org?.ag_tax_exempt ?? false,
     weightUnit: org?.weight_unit ?? "lb",
     areaUnit: org?.area_unit ?? "acres",
+    scheduleNotifyMode: org?.schedule_notify_mode ?? "digest",
   };
 }
 
@@ -367,6 +370,24 @@ export async function getMarketWatchlist(orgId: string) {
   if (DEMO_MODE) return [];
   const supabase = createClient();
   const { data } = await supabase.from("market_watchlist").select("*").eq("org_id", orgId).order("created_at");
+  return data ?? [];
+}
+
+export async function getScheduleEvents(orgId: string) {
+  if (DEMO_MODE) return [];
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("schedule_events")
+    .select("*, batches(batch_id, crop_name_snapshot), fields(name), cea_areas(name), animals(ear_tag_number)")
+    .eq("org_id", orgId)
+    .order("event_date");
+  return data ?? [];
+}
+
+export async function getSops(orgId: string) {
+  if (DEMO_MODE) return [];
+  const supabase = createClient();
+  const { data } = await supabase.from("sops").select("*").eq("org_id", orgId).order("title");
   return data ?? [];
 }
 

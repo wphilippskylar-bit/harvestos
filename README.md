@@ -567,6 +567,29 @@ failing silently — everything else in the app works normally either way.
 - US-only, since NOAA's National Weather Service API only covers the US — fine for now since that's
   Harvest OS's whole audience.
 
+## Expanded push notifications, and a new Schedule + SOPs pair of nav tabs (migration 0024)
+
+- **Push notifications now cover four things, not two** — the daily digest (`/api/push/send-alerts`)
+  already checked low microgreens stock and harvest-due batches; it now also checks harvest-due
+  Greenhouse/Indoor (CEA) plantings and livestock withdrawal periods clearing within 2 days. Setup
+  is unchanged — see the "Low-stock / harvest-due push notifications" section above for the VAPID
+  key steps; this is a code change to what the existing cron checks, not a new setup step.
+- **New "Schedule" tab** — plan plantings, harvests, maintenance, or sales tasks for any date, as
+  far out as you want. Each item can optionally link to an existing batch, field, Greenhouse/Indoor
+  area, or animal (so "Harvest Tray Batch #12" pulls in that batch directly instead of being a
+  loose note), and has its own notify on/off switch plus a "remind me N days before" setting.
+  Grouped into Overdue / Upcoming / Done on the page, filterable by type.
+- **Schedule notification grouping** — a new Settings → "Schedule notifications" dropdown controls
+  how Schedule reminders reach you as push notifications: bundled into the same daily digest as
+  everything else (default), sent as their own separate push per item, or turned off entirely. This
+  is an org-wide setting (`organizations.schedule_notify_mode`); each item's own notify toggle still
+  has to be on for it to fire at all.
+- **New "SOPs" tab** — a place for standard operating procedures (sanitizing steps, harvest
+  checklists, onboarding notes) with an optional category and a plain-text/numbered-list body,
+  separate from the day-to-day Schedule so a "how we do X" reference doesn't get buried among
+  one-off planned tasks.
+- Run `0024_schedule_sops.sql` after `0023_dashboard_prefs.sql`.
+
 ## Installed app not updating after a deploy
 
 If you (or a team member) installed Harvest OS to a phone or desktop home screen and it kept
