@@ -223,6 +223,7 @@ export default function CropForm({ orgId, crop, onDone }: { orgId: string; crop?
             {[
               { key: "microgreens", label: "Microgreens (Batches)" },
               { key: "field_crop", label: "Field crop (Fields)" },
+              { key: "commercial", label: "Commercial / wholesale scale" },
             ].map((opt) => (
               <label key={opt.key} className="flex items-center gap-1.5 text-sm text-stone-600">
                 <input

@@ -1,5 +1,7 @@
-import { getOrgContext, getProfitability } from "@/lib/data";
+import { getOrgContext, getProfitability, getTaxDeductibleSummary } from "@/lib/data";
 import { PageHeader, fmtCurrency2, EmptyState } from "@/components/ui";
+import BreakEvenSection from "@/components/BreakEvenSection";
+import TaxSummarySection from "@/components/TaxSummarySection";
 
 function ProfitCell({ value }: { value: number }) {
   return (
@@ -11,7 +13,20 @@ function ProfitCell({ value }: { value: number }) {
 
 export default async function ProfitabilityPage() {
   const ctx = await getOrgContext();
-  const { cropMargin, fieldMargin, animalMargin, monthlyPnl } = await getProfitability(ctx.orgId);
+  const [{ cropMargin, fieldMargin, animalMargin, monthlyPnl }, taxRows] = await Promise.all([
+    getProfitability(ctx.orgId),
+    getTaxDeductibleSummary(ctx.orgId),
+  ]);
+
+  const operationTotals = monthlyPnl.reduce(
+    (acc: { cost: number; revenue: number }, m: any) => ({
+      cost: acc.cost + (m.copex ?? 0),
+      revenue: acc.revenue + (m.net_revenue ?? 0),
+    }),
+    { cost: 0, revenue: 0 }
+  );
+  const breakEvenFields = fieldMargin.map((f: any) => ({ id: f.field_id, label: f.field_name, cost: f.total_cost ?? 0, revenue: f.total_revenue ?? 0 }));
+  const breakEvenAnimals = animalMargin.map((a: any) => ({ id: a.animal_id, label: a.ear_tag_number, cost: a.total_cost ?? 0, revenue: a.total_revenue ?? 0 }));
 
   return (
     <div className="space-y-8">
@@ -19,6 +34,8 @@ export default async function ProfitabilityPage() {
         title="Profitability"
         subtitle="Which crops, fields, and animals are actually making money — rolled up from your Purchases and Sales, not a separate spreadsheet."
       />
+
+      <BreakEvenSection operation={operationTotals} fields={breakEvenFields} animals={breakEvenAnimals} />
 
       <div className="card overflow-hidden">
         <div className="px-5 py-4 border-b border-stone-100">
@@ -147,6 +164,8 @@ export default async function ProfitabilityPage() {
           </table>
         )}
       </div>
+
+      <TaxSummarySection rows={taxRows as any} agTaxExempt={ctx.agTaxExempt ?? false} />
     </div>
   );
 }

@@ -1,12 +1,14 @@
-import { getOrgContext, getAnimals, getGrazingOverview } from "@/lib/data";
+import { getOrgContext, getAnimals, getGrazingOverview, getHerdSummary, getFarmSupplies } from "@/lib/data";
 import { PageHeader } from "@/components/ui";
 import LivestockClient from "./LivestockClient";
 
 export default async function LivestockPage() {
   const ctx = await getOrgContext();
-  const [animals, grazing] = await Promise.all([
+  const [animals, grazing, herdSummary, feedSupplies] = await Promise.all([
     getAnimals(ctx.orgId),
     getGrazingOverview(ctx.orgId),
+    getHerdSummary(ctx.orgId),
+    getFarmSupplies(ctx.orgId, ["feed"]),
   ]);
   return (
     <div>
@@ -20,6 +22,8 @@ export default async function LivestockPage() {
         animals={animals}
         fields={grazing.fields}
         grazingEvents={grazing.events}
+        herdSummary={herdSummary}
+        feedSupplies={feedSupplies}
       />
     </div>
   );

@@ -15,6 +15,7 @@ export type OrgContext = {
   batchIdPrefix?: string;
   userEmail?: string | null;
   operationTypes?: string[];
+  agTaxExempt?: boolean;
 };
 
 export async function getOrgContext(): Promise<OrgContext> {
@@ -30,6 +31,7 @@ export async function getOrgContext(): Promise<OrgContext> {
       batchIdPrefix: demoOrg.batch_id_prefix,
       userEmail: "you@example.com",
       operationTypes: ["microgreens"],
+      agTaxExempt: false,
     };
   }
   const supabase = createClient();
@@ -38,14 +40,14 @@ export async function getOrgContext(): Promise<OrgContext> {
 
   const { data: membership } = await supabase
     .from("memberships")
-    .select("org_id, role, organizations(name, plan_tier, seat_limit, batch_id_prefix, operation_types)")
+    .select("org_id, role, organizations(name, plan_tier, seat_limit, batch_id_prefix, operation_types, ag_tax_exempt)")
     .eq("user_id", user.id)
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
 
   if (!membership) return { orgId: "", orgName: "", role: "", userId: user.id, isDemo: false, userEmail: user.email };
-  const org = membership.organizations as unknown as { name: string; plan_tier: string; seat_limit: number; batch_id_prefix: string; operation_types: string[] } | null;
+  const org = membership.organizations as unknown as { name: string; plan_tier: string; seat_limit: number; batch_id_prefix: string; operation_types: string[]; ag_tax_exempt: boolean } | null;
   return {
     orgId: membership.org_id,
     orgName: org?.name ?? "",
@@ -57,6 +59,7 @@ export async function getOrgContext(): Promise<OrgContext> {
     batchIdPrefix: org?.batch_id_prefix,
     userEmail: user.email,
     operationTypes: org?.operation_types ?? ["microgreens"],
+    agTaxExempt: org?.ag_tax_exempt ?? false,
   };
 }
 
@@ -212,6 +215,46 @@ export async function getProfitability(orgId: string) {
     animalMargin: animalMargin ?? [],
     monthlyPnl: monthlyPnl ?? [],
   };
+}
+
+export async function getFarmSupplies(orgId: string, categories?: string[]) {
+  if (DEMO_MODE) return [];
+  const supabase = createClient();
+  let query = supabase.from("supply_stock").select("*").eq("org_id", orgId).order("name");
+  if (categories && categories.length > 0) query = query.in("category", categories);
+  const { data } = await query;
+  return data ?? [];
+}
+
+export async function getHerdSummary(orgId: string) {
+  if (DEMO_MODE) return [];
+  const supabase = createClient();
+  const { data } = await supabase.from("herd_summary").select("*").eq("org_id", orgId).order("breed");
+  return data ?? [];
+}
+
+export async function getLaborEntries(orgId: string) {
+  if (DEMO_MODE) return [];
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("labor_entries")
+    .select("*")
+    .eq("org_id", orgId)
+    .order("work_date", { ascending: false })
+    .limit(100);
+  return data ?? [];
+}
+
+export async function getTaxDeductibleSummary(orgId: string) {
+  if (DEMO_MODE) return [];
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("tax_deductible_summary")
+    .select("*")
+    .eq("org_id", orgId)
+    .order("year", { ascending: false })
+    .order("category");
+  return data ?? [];
 }
 
 export async function getGrazingOverview(orgId: string) {

@@ -10,11 +10,16 @@ const CATEGORIES = ["Seeds", "Trays", "Medium", "Equipment", "Supplies", "Packag
 
 type Crop = { id: string; name: string };
 type Field = { id: string; name: string };
+type Supply = { supply_id: string; name: string; category: string; unit: string };
 
-export default function PurchaseForm({ orgId, crops, fields = [], onDone }: { orgId: string; crops: Crop[]; fields?: Field[]; onDone: () => void }) {
+const CATEGORY_LABELS: Record<string, string> = { nutrient: "Nutrient", feed: "Feed", commercial_seed: "Commercial seed" };
+
+export default function PurchaseForm({
+  orgId, crops, fields = [], supplies = [], onDone,
+}: { orgId: string; crops: Crop[]; fields?: Field[]; supplies?: Supply[]; onDone: () => void }) {
   const supabase = createClient();
   const router = useRouter();
-  const [mode, setMode] = useState<"general" | "seed">("general");
+  const [mode, setMode] = useState<"general" | "seed" | "supply">("general");
   const [item, setItem] = useState("");
   const [category, setCategory] = useState("Seeds");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -26,15 +31,23 @@ export default function PurchaseForm({ orgId, crops, fields = [], onDone }: { or
   const [cropId, setCropId] = useState(crops[0]?.id ?? "");
   const [seedWeightG, setSeedWeightG] = useState("");
   const [fieldId, setFieldId] = useState("");
+  const [supplyId, setSupplyId] = useState(supplies[0]?.supply_id ?? "");
+  const [supplyQty, setSupplyQty] = useState("");
+  const [taxDeductible, setTaxDeductible] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function switchMode(next: "general" | "seed") {
+  function switchMode(next: "general" | "seed" | "supply") {
     setMode(next);
     if (next === "seed") {
       const crop = crops.find((c) => c.id === cropId) ?? crops[0];
       setCategory("Seeds");
       if (crop && !item) setItem(`${crop.name} seed`);
+    }
+    if (next === "supply") {
+      const supply = supplies.find((s) => s.supply_id === supplyId) ?? supplies[0];
+      setCategory("Supplies");
+      if (supply && !item) setItem(supply.name);
     }
   }
 
@@ -57,6 +70,9 @@ export default function PurchaseForm({ orgId, crops, fields = [], onDone }: { or
         crop_id: mode === "seed" ? cropId || null : null,
         seed_weight_g: mode === "seed" && seedWeightG ? Number(seedWeightG) : null,
         field_id: fieldId || null,
+        supply_id: mode === "supply" ? supplyId || null : null,
+        supply_qty: mode === "supply" && supplyQty ? Number(supplyQty) : null,
+        tax_deductible: taxDeductible,
       });
       if (error) throw error;
       onDone();
@@ -85,11 +101,25 @@ export default function PurchaseForm({ orgId, crops, fields = [], onDone }: { or
         >
           Seed purchase
         </button>
+        {supplies.length > 0 && (
+          <button
+            type="button"
+            className={`flex-1 rounded-md py-1.5 transition-colors ${mode === "supply" ? "bg-white shadow-sm text-brand-700" : "text-stone-500"}`}
+            onClick={() => switchMode("supply")}
+          >
+            Supply purchase
+          </button>
+        )}
       </div>
 
       {mode === "seed" && (
         <p className="text-xs text-stone-400 -mt-2">
           Adds straight to that crop&apos;s seed inventory (grams on hand) as soon as you save.
+        </p>
+      )}
+      {mode === "supply" && (
+        <p className="text-xs text-stone-400 -mt-2">
+          Adds straight to that item&apos;s stock on hand as soon as you save.
         </p>
       )}
 
@@ -117,13 +147,40 @@ export default function PurchaseForm({ orgId, crops, fields = [], onDone }: { or
           </>
         )}
 
+        {mode === "supply" && (
+          <div>
+            <label className="label">Supply item</label>
+            <select
+              className="input"
+              value={supplyId}
+              onChange={(e) => {
+                setSupplyId(e.target.value);
+                const supply = supplies.find((s) => s.supply_id === e.target.value);
+                if (supply) setItem(supply.name);
+              }}
+            >
+              {supplies.map((s) => (
+                <option key={s.supply_id} value={s.supply_id}>
+                  {s.name} ({CATEGORY_LABELS[s.category] ?? s.category})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        {mode === "supply" && (
+          <div>
+            <label className="label">Qty purchased ({supplies.find((s) => s.supply_id === supplyId)?.unit ?? "unit"})</label>
+            <input className="input" type="number" step="0.01" value={supplyQty} onChange={(e) => setSupplyQty(e.target.value)} required />
+          </div>
+        )}
+
         <div className={mode === "seed" ? "" : "sm:col-span-2"}>
           <label className="label">Item</label>
           <input className="input" value={item} onChange={(e) => setItem(e.target.value)} required />
         </div>
         <div>
           <label className="label">Category</label>
-          <select className="input" value={category} onChange={(e) => setCategory(e.target.value)} disabled={mode === "seed"}>
+          <select className="input" value={category} onChange={(e) => setCategory(e.target.value)} disabled={mode === "seed" || mode === "supply"}>
             {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
           </select>
         </div>
@@ -161,6 +218,12 @@ export default function PurchaseForm({ orgId, crops, fields = [], onDone }: { or
             <p className="text-xs text-stone-400 mt-1">Attributes this cost to that field's profitability.</p>
           </div>
         )}
+        <div className="flex items-end pb-2">
+          <label className="flex items-center gap-1.5 text-sm text-stone-600">
+            <input type="checkbox" checked={taxDeductible} onChange={(e) => setTaxDeductible(e.target.checked)} />
+            Tax-deductible
+          </label>
+        </div>
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex gap-2 justify-end">

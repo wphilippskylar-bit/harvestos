@@ -42,6 +42,9 @@ export default function SettingsClient({
   const [operationTypes, setOperationTypes] = useState<string[]>(ctx.operationTypes ?? ["microgreens"]);
   const [savingOps, setSavingOps] = useState(false);
 
+  const [agTaxExempt, setAgTaxExempt] = useState<boolean>(ctx.agTaxExempt ?? false);
+  const [savingTaxExempt, setSavingTaxExempt] = useState(false);
+
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("member");
   const [invitingBusy, setInvitingBusy] = useState(false);
@@ -92,6 +95,17 @@ export default function SettingsClient({
     setSavingOps(true);
     await supabase.from("organizations").update({ operation_types: next }).eq("id", ctx.orgId);
     setSavingOps(false);
+    router.refresh();
+  }
+
+  async function toggleAgTaxExempt() {
+    if (!isEditor) return;
+    const next = !agTaxExempt;
+    setAgTaxExempt(next);
+    if (DEMO_MODE) return;
+    setSavingTaxExempt(true);
+    await supabase.from("organizations").update({ ag_tax_exempt: next }).eq("id", ctx.orgId);
+    setSavingTaxExempt(false);
     router.refresh();
   }
 
@@ -207,6 +221,25 @@ export default function SettingsClient({
             );
           })}
         </div>
+      </div>
+
+      {/* Ag tax exemption */}
+      <div className="card p-5">
+        <h2 className="font-semibold text-stone-800 mb-1">Agricultural tax exemption</h2>
+        <p className="text-xs text-stone-500 mb-3">
+          If your farm holds an ag/farm tax exemption, flag it here. This doesn't change anything in the app yet —
+          it's here so tax write-off exports and future filings already know your status.
+        </p>
+        <button
+          type="button"
+          disabled={!isEditor || savingTaxExempt}
+          onClick={toggleAgTaxExempt}
+          className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
+            agTaxExempt ? "bg-brand-700 text-white border-brand-700" : "bg-white text-stone-500 border-stone-300"
+          } ${isEditor ? "cursor-pointer" : "cursor-default opacity-70"}`}
+        >
+          {agTaxExempt ? "✓ " : ""}We have an ag tax exemption
+        </button>
       </div>
 
       {/* Batch ID prefix */}

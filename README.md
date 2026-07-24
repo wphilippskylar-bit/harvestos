@@ -52,8 +52,9 @@ connect them yourself. Here's the whole path, roughly 15 minutes:
    `0005_explicit_grants.sql`, then `0006_create_org_rpc.sql`, then `0007_crop_seed_cost_and_add.sql`,
    then `0008_inventory_and_batches.sql`, then `0009_inventory_edit_permissions.sql`, then
    `0010_push_and_harvest_photos.sql`, then `0011_field_crops.sql`, then `0012_livestock.sql`, then
-   `0013_grazing.sql`, then `0014_platform_admin.sql`, then `0015_profitability.sql` — **in that
-   exact order**, each as its own run. (They build on each other; running out of order will error.)
+   `0013_grazing.sql`, then `0014_platform_admin.sql`, then `0015_profitability.sql`, then
+   `0016_farm_inputs_labor_tax.sql` — **in that exact order**, each as its own run. (They build on
+   each other; running out of order will error.)
 4. If a run errors, read the message — it's almost always "already exists" from re-running a step
    twice, which is safe to ignore, or a typo from copy/paste truncation. Re-copy the full file if
    unsure.
@@ -325,6 +326,43 @@ view, closing the gap with Granular's headline "field-level ROI" feature — no 
 Nothing here is automatic — you get out what you tag in. If a purchase or sale isn't tagged to a
 field or animal, it still counts in the overall Monthly P&L and (for microgreens) the by-crop
 numbers, it just won't show up broken out by field or animal.
+
+**Important — Monthly P&L numbers changed with migration 0016.** The original `monthly_pnl` view
+(since the very first migration) had a bug: it joined sales and purchases directly by month before
+summing, which multiplies matching rows together within the same month instead of adding them —
+so any month with more than one purchase *and* more than one sale had its revenue and cost totals
+silently inflated. Migration `0016_farm_inputs_labor_tax.sql` rewrites the view correctly (each
+source is summed independently, then joined). If your Monthly P&L numbers look different — usually
+lower, and more accurate — after running 0016, that's why. Nothing about your underlying purchase
+or sale records changed, only how the totals are calculated.
+
+## Farm supplies, labor, tax write-offs, and break-even (migration 0016)
+
+- **Farm supplies (Inventory page)**: nutrients and commercial seed now get their own
+  stock-on-hand tracking section on the Inventory page, same pattern as the existing seed-gram /
+  harvested-oz tracking — add an item, log usage, get a low-stock badge once you're under your
+  threshold. Buying more through Purchases (see below) tops up stock automatically.
+- **Feed & herd summary (Livestock page)**: feed gets the same stock-on-hand tracking, plus a herd
+  head-count rollup grouped by breed and status (active/sold/etc.) at the top of the page.
+- **Labor (new "Labor" nav item)**: log hours and an hourly rate (or a flat fee — enter 1 hour and
+  the flat amount as the rate) per worker per day, optionally tied to a field, animal, or batch so
+  it flows into that item's profitability, plus a tax-deductible checkbox. Labor cost now also
+  counts toward Monthly P&L, field/animal margin, and break-even alongside purchases.
+- **Supply purchases (Purchases page)**: a third "Supply purchase" toggle next to General/Seed lets
+  you buy a nutrient/feed/commercial-seed item straight from the Purchases form — it auto-adds to
+  that item's stock on hand, same as seed purchases already did for crop seed inventory.
+- **Tax write-offs**: every purchase and labor entry now has a "tax-deductible" checkbox (checked
+  by default). A new "Tax write-offs" section at the bottom of the Profitability page totals
+  deductible purchases and labor by year and category, with a CSV export for handing to your
+  accountant. Settings also has an "Agricultural tax exemption" toggle to flag if your farm holds
+  one — it doesn't change any calculations yet, it's just recorded for future filings/exports.
+- **Break-even (Profitability page)**: a new "Break-even point" panel with a dropdown to switch
+  scope — whole operation, a specific field, or a specific animal — showing total cost, total
+  revenue, and how much revenue is left (or how much surplus you're past) break-even for that
+  scope. Per-crop/batch break-even isn't included yet since crop-level purchases aren't currently
+  cost-tagged the way fields and animals are — flag if you want that added next.
+- **Commercial crop tag (Crop Library)**: crops can now be tagged "Commercial / wholesale scale" in
+  addition to Microgreens and Field crop, as a third checkbox on the crop form.
 
 ## About the future paid tiers
 

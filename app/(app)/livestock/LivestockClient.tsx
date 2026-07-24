@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/ui";
 import AnimalForm from "@/components/forms/AnimalForm";
 import HealthLogForm from "@/components/forms/HealthLogForm";
 import GrazingForm from "@/components/forms/GrazingForm";
+import FarmSuppliesSection from "@/components/FarmSuppliesSection";
 
 type Animal = {
   id: string;
@@ -44,13 +45,15 @@ type GrazingEvent = {
 };
 
 export default function LivestockClient({
-  orgId, role, animals, fields, grazingEvents,
+  orgId, role, animals, fields, grazingEvents, herdSummary = [], feedSupplies = [],
 }: {
   orgId: string;
   role: string;
   animals: Animal[];
   fields?: Field[];
   grazingEvents?: GrazingEvent[];
+  herdSummary?: { status: string; breed: string; head_count: number }[];
+  feedSupplies?: any[];
 }) {
   const supabase = createClient();
   const router = useRouter();
@@ -136,6 +139,34 @@ export default function LivestockClient({
     </div>
   );
 
+  const herdSection = herdSummary.length > 0 && (
+    <div className="card overflow-hidden">
+      <div className="px-5 py-4 border-b border-stone-100">
+        <h3 className="font-semibold text-stone-800">Herd summary</h3>
+        <p className="text-xs text-stone-400 mt-0.5">Head count by breed and status.</p>
+      </div>
+      <div className="px-5 py-3 flex flex-wrap gap-3">
+        {herdSummary.map((h) => (
+          <div key={`${h.breed}-${h.status}`} className="px-3 py-2 rounded-lg bg-stone-50 text-sm">
+            <span className="font-semibold text-stone-800">{h.head_count}</span>{" "}
+            <span className="text-stone-500">{h.breed} · {h.status}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const feedSection = (
+    <FarmSuppliesSection
+      orgId={orgId}
+      supplies={feedSupplies}
+      categories={["feed"]}
+      title="Feed"
+      hint="Feed stock on hand — add a feed item, or it fills in automatically once you log a purchase tied to it."
+      isEditor={isEditor}
+    />
+  );
+
   if (animals.length === 0 && !showAnimalForm) {
     return (
       <div className="space-y-4">
@@ -148,13 +179,16 @@ export default function LivestockClient({
             <button className="btn-primary" onClick={() => setShowAnimalForm(true)}>Add your first animal</button>
           </div>
         )}
+        {herdSection}
         {grazingSection}
+        {feedSection}
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
+      {herdSection}
       {isEditor && (
         showAnimalForm
           ? <AnimalForm orgId={orgId} animals={animals} onDone={() => setShowAnimalForm(false)} />
@@ -257,6 +291,7 @@ export default function LivestockClient({
       })}
 
       {grazingSection}
+      {feedSection}
     </div>
   );
 }

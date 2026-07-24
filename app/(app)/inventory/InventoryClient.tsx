@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import { EmptyState } from "@/components/ui";
 import InventoryAdjustForm from "@/components/forms/InventoryAdjustForm";
+import FarmSuppliesSection from "@/components/FarmSuppliesSection";
 
 type InventoryRow = {
   crop_id: string;
@@ -18,8 +19,8 @@ type InventoryRow = {
 };
 
 export default function InventoryClient({
-  orgId, inventory, role,
-}: { orgId: string; inventory: InventoryRow[]; role: string }) {
+  orgId, inventory, role, supplies = [],
+}: { orgId: string; inventory: InventoryRow[]; role: string; supplies?: any[] }) {
   const supabase = createClient();
   const router = useRouter();
   const canEdit = role === "owner" || role === "admin";
@@ -83,12 +84,28 @@ export default function InventoryClient({
     router.refresh();
   }
 
+  const suppliesSection = (
+    <FarmSuppliesSection
+      orgId={orgId}
+      supplies={supplies}
+      categories={["nutrient", "commercial_seed"]}
+      title="Nutrients & commercial seed"
+      hint="Fertilizer/amendment stock and bulk commercial-scale seed — separate from the microgreens seed tracked above."
+      isEditor={canEdit || role === "member"}
+    />
+  );
+
   if (inventory.length === 0) {
-    return <EmptyState title="No inventory yet" hint="Inventory fills in automatically as you log seed purchases, start batches, and log harvests." />;
+    return (
+      <div className="space-y-4">
+        <EmptyState title="No crop inventory yet" hint="Inventory fills in automatically as you log seed purchases, start batches, and log harvests." />
+        {suppliesSection}
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="flex justify-end">
         <button className="btn-secondary !py-1.5 text-sm" onClick={exportMovementsCsv} disabled={exporting}>
           {exporting ? "Exporting…" : "Export movements CSV"}
@@ -169,6 +186,7 @@ export default function InventoryClient({
         </tbody>
       </table>
       </div>
+      {suppliesSection}
     </div>
   );
 }
