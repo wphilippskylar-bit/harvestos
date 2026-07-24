@@ -301,6 +301,13 @@ export async function getEquipmentDepreciation(orgId: string) {
   return data ?? [];
 }
 
+export async function getMarketWatchlist(orgId: string) {
+  if (DEMO_MODE) return [];
+  const supabase = createClient();
+  const { data } = await supabase.from("market_watchlist").select("*").eq("org_id", orgId).order("created_at");
+  return data ?? [];
+}
+
 export async function getGrazingOverview(orgId: string) {
   if (DEMO_MODE) return { fields: [], events: [] };
   const supabase = createClient();

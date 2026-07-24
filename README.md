@@ -54,8 +54,8 @@ connect them yourself. Here's the whole path, roughly 15 minutes:
    `0010_push_and_harvest_photos.sql`, then `0011_field_crops.sql`, then `0012_livestock.sql`, then
    `0013_grazing.sql`, then `0014_platform_admin.sql`, then `0015_profitability.sql`, then
    `0016_farm_inputs_labor_tax.sql`, then `0017_equipment_livestock_purchases.sql`, then
-   `0018_field_map.sql` — **in that exact order**, each as its own run. (They build on each other;
-   running out of order will error.)
+   `0018_field_map.sql`, then `0019_market_watchlist.sql` — **in that exact order**, each as its own
+   run. (They build on each other; running out of order will error.)
 4. If a run errors, read the message — it's almost always "already exists" from re-running a step
    twice, which is safe to ignore, or a typo from copy/paste truncation. Re-copy the full file if
    unsure.
@@ -421,6 +421,34 @@ or Livestock tracking is on):
 
 Both are optional and additive — existing fields with nothing set just don't show a pin/boundary
 until you add one.
+
+## Market Prices — live USDA commodity pricing (migration 0019)
+
+Closes the live-pricing gap on the roadmap — none of the six competitors researched lead with this.
+New "Market Prices" nav item, powered by USDA's own free MyMarketNews (MARS) API — real government
+market data, not a paid third-party feed.
+
+**One-time setup (free, ~5 minutes):**
+1. Go to [mymarketnews.ams.usda.gov](https://mymarketnews.ams.usda.gov) and click **Login**.
+2. You'll be sent to USDA's eAuth sign-in — register a new eAuth account if you don't have one
+   (confirmation email usually arrives within a couple hours).
+3. Once logged in, click your account name and choose **Show API key**.
+4. In Vercel: your project → **Settings → Environment Variables** → add `USDA_MARS_API_KEY` with
+   that key as the value → redeploy.
+
+Until that key is set, the Market Prices page shows a clear "not set up yet" message instead of
+failing silently — everything else in the app works normally either way.
+
+**Once it's set up:**
+- Quick-filter buttons for feeder cattle, slaughter cattle, hogs, hay, and fruits/vegetables, or
+  search any commodity by name.
+- Click a report to see its current data — USDA report formats vary a lot by commodity, so the
+  table adapts to whatever columns that particular report returns rather than assuming a fixed
+  shape.
+- **Pin** any report so it shows up at the top of the page next time, without re-searching.
+- Data refreshes roughly every 15 minutes (results are cached briefly to stay well within USDA's
+  fair-use limits) — this is real-time-enough for market awareness, not built for high-frequency
+  trading.
 
 ## Installed app not updating after a deploy
 
