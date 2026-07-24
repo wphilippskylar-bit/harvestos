@@ -257,6 +257,17 @@ export async function getTaxDeductibleSummary(orgId: string) {
   return data ?? [];
 }
 
+export async function getEquipmentDepreciation(orgId: string) {
+  if (DEMO_MODE) return [];
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("equipment_depreciation")
+    .select("*")
+    .eq("org_id", orgId)
+    .order("purchase_date", { ascending: false });
+  return data ?? [];
+}
+
 export async function getGrazingOverview(orgId: string) {
   if (DEMO_MODE) return { fields: [], events: [] };
   const supabase = createClient();

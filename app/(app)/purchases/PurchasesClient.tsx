@@ -3,18 +3,34 @@
 import { useState } from "react";
 import { EmptyState, fmtCurrency2 } from "@/components/ui";
 import PurchaseForm from "@/components/forms/PurchaseForm";
+import EquipmentSection from "@/components/EquipmentSection";
+import FarmSuppliesSection from "@/components/FarmSuppliesSection";
 
-export default function PurchasesClient({ orgId, purchases, crops, fields = [], supplies = [] }: { orgId: string; purchases: any[]; crops: any[]; fields?: any[]; supplies?: any[] }) {
+export default function PurchasesClient({
+  orgId, purchases, crops, fields = [], supplies = [], equipmentSupplies = [], animals = [], equipment = [], isEditor = false,
+}: {
+  orgId: string;
+  purchases: any[];
+  crops: any[];
+  fields?: any[];
+  supplies?: any[];
+  equipmentSupplies?: any[];
+  animals?: any[];
+  equipment?: any[];
+  isEditor?: boolean;
+}) {
   const [showForm, setShowForm] = useState(false);
   const total = purchases.reduce((a, p) => a + (p.total ?? 0), 0);
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-4">
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
         <div className="text-sm text-stone-500">Total spend: <span className="font-semibold text-stone-800">{fmtCurrency2(total)}</span></div>
         {!showForm && <button className="btn-primary" onClick={() => setShowForm(true)}>+ Add purchase</button>}
       </div>
-      {showForm && <PurchaseForm orgId={orgId} crops={crops} fields={fields} supplies={supplies} onDone={() => setShowForm(false)} />}
+      {showForm && (
+        <PurchaseForm orgId={orgId} crops={crops} fields={fields} supplies={supplies} animals={animals} onDone={() => setShowForm(false)} />
+      )}
 
       {purchases.length === 0 ? (
         <EmptyState title="No purchases logged yet" hint="Log seeds, trays, equipment, and supplies here to track real cost per tray." />
@@ -44,6 +60,17 @@ export default function PurchasesClient({ orgId, purchases, crops, fields = [], 
           </table>
         </div>
       )}
+
+      <FarmSuppliesSection
+        orgId={orgId}
+        supplies={equipmentSupplies}
+        categories={["equipment"]}
+        title="Farm & ranch equipment — stock on hand"
+        hint="Smaller equipment/tools you keep count of (e.g. a box of hand tools). For big-ticket depreciable purchases (tractors, etc.), use the Equipment purchase mode above instead — that's tracked below with depreciation."
+        isEditor={isEditor}
+      />
+
+      <EquipmentSection rows={equipment} />
     </div>
   );
 }

@@ -20,6 +20,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   nutrient: "Nutrient",
   feed: "Feed",
   commercial_seed: "Commercial seed",
+  equipment: "Equipment",
 };
 
 export default function FarmSuppliesSection({

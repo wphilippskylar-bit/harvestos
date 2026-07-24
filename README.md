@@ -53,8 +53,8 @@ connect them yourself. Here's the whole path, roughly 15 minutes:
    then `0008_inventory_and_batches.sql`, then `0009_inventory_edit_permissions.sql`, then
    `0010_push_and_harvest_photos.sql`, then `0011_field_crops.sql`, then `0012_livestock.sql`, then
    `0013_grazing.sql`, then `0014_platform_admin.sql`, then `0015_profitability.sql`, then
-   `0016_farm_inputs_labor_tax.sql` — **in that exact order**, each as its own run. (They build on
-   each other; running out of order will error.)
+   `0016_farm_inputs_labor_tax.sql`, then `0017_equipment_livestock_purchases.sql` — **in that
+   exact order**, each as its own run. (They build on each other; running out of order will error.)
 4. If a run errors, read the message — it's almost always "already exists" from re-running a step
    twice, which is safe to ignore, or a typo from copy/paste truncation. Re-copy the full file if
    unsure.
@@ -363,6 +363,37 @@ or sale records changed, only how the totals are calculated.
   cost-tagged the way fields and animals are — flag if you want that added next.
 - **Commercial crop tag (Crop Library)**: crops can now be tagged "Commercial / wholesale scale" in
   addition to Microgreens and Field crop, as a third checkbox on the crop form.
+
+## Equipment, livestock purchases, and an easier supply-purchase flow (migration 0017)
+
+Closes three gaps found right after shipping 0016:
+
+- **Supply purchases no longer require an existing item first.** The "Supply purchase" mode on the
+  Purchases form used to only appear once you'd already added a nutrient/feed/commercial-seed item
+  on Inventory or Livestock — a dead end on your very first purchase. Now the mode is always there,
+  and its item dropdown has a "+ New item…" option that lets you name a brand-new item, pick its
+  category and unit, and buy it — all in one form.
+- **Equipment**, on the Purchases page, is now two things: a stock-on-hand list (same pattern as
+  nutrients/feed, for smaller items you just want a count of — a box of hand tools, etc.), and an
+  "Equipment" purchase mode for big-ticket depreciable assets (tractors, mowers, etc.) that asks for
+  salvage value and useful life, then tracks straight-line depreciation automatically — annual
+  depreciation, accumulated depreciation, and current book value, shown in a table on the Purchases
+  page.
+- **Livestock purchases**: a new "Livestock" mode on the Purchases form lets you buy an animal and
+  either create a brand-new animal record (ear tag, breed, birth date) or attach the cost to an
+  animal you already have — either way, the purchase cost now counts toward that animal's numbers
+  on the Profitability page, the same way health-log costs and tagged labor already did.
+
+## Installed app not updating after a deploy
+
+If you (or a team member) installed Harvest OS to a phone or desktop home screen and it kept
+showing an old version after you pushed changes, that was a service-worker caching bug, not a
+Vercel deployment-link issue — the project's URL stays the same on every push. It's fixed as of
+this update: the service worker file is now marked non-cacheable, its internal cache version is
+auto-stamped with the deploy's commit hash on every build, and the installed app automatically
+reloads itself once when a new version takes over. Nothing to do on your end beyond deploying this
+update — the next time anyone opens the installed app, it'll pick up the fix and stay current from
+then on.
 
 ## About the future paid tiers
 
