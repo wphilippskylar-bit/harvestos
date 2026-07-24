@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import { errorMessage } from "@/lib/errors";
-import { DASHBOARD_CARDS } from "@/app/(app)/dashboard/DashboardCards";
+import { DASHBOARD_CARDS, resolveCardOrder } from "@/app/(app)/dashboard/DashboardCards";
 
 export default function DashboardCustomizeSettings({
   orgId, userId, cardOrder, hiddenCards,
@@ -18,12 +18,7 @@ export default function DashboardCustomizeSettings({
   const supabase = createClient();
   const router = useRouter();
 
-  const initialOrder = cardOrder && cardOrder.length > 0
-    ? [
-        ...cardOrder.map((key) => DASHBOARD_CARDS.find((c) => c.key === key)).filter((c): c is typeof DASHBOARD_CARDS[number] => !!c),
-        ...DASHBOARD_CARDS.filter((c) => !cardOrder.includes(c.key)),
-      ]
-    : DASHBOARD_CARDS;
+  const initialOrder = resolveCardOrder(cardOrder);
 
   const [order, setOrder] = useState(initialOrder);
   const [hidden, setHidden] = useState<string[]>(hiddenCards);

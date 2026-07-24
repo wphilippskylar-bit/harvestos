@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { autoPinMarketReports } from "@/lib/market-autopin";
 
@@ -193,6 +194,10 @@ export default function LoginPage() {
 
         <p className="text-center text-xs text-stone-400 mt-6">
           Been invited to a farm? Sign up (or log in) with the exact email you were invited on — you'll land in their farm automatically, with the role they set.
+        </p>
+        <p className="text-center text-xs text-stone-400 mt-3">
+          By continuing, you agree to the <Link href="/terms" className="text-brand-700 hover:underline">Terms of Use</Link> and{" "}
+          <Link href="/privacy" className="text-brand-700 hover:underline">Privacy Policy</Link>.
         </p>
       </div>
     </div>

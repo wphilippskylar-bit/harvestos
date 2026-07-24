@@ -41,7 +41,15 @@ export default function FieldForm({ orgId, areaUnit, onDone }: { orgId: string; 
         const { error: rowsError } = await supabase
           .from("field_rows")
           .insert(labels.map((label) => ({ org_id: orgId, field_id: field.id, label })));
-        if (rowsError) throw rowsError;
+        if (rowsError) {
+          // The field itself already saved successfully at this point — these are two separate
+          // inserts, not one transaction — so closing the form here (rather than throwing into the
+          // generic catch below) would make it look like nothing saved when the field actually did.
+          // Surface the row failure specifically and leave the form open so nothing looks lost.
+          setError(`The field "${name}" was saved, but its rows/beds couldn't be added: ${rowsError.message}. There's no way to add rows to an existing field yet — for now, delete "${name}" and re-create it with the row labels.`);
+          router.refresh();
+          return;
+        }
       }
       onDone();
       router.refresh();

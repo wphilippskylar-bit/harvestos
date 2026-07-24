@@ -8,6 +8,7 @@ import FieldForm from "@/components/forms/FieldForm";
 import PlantingForm from "@/components/forms/PlantingForm";
 import SoilTestForm from "@/components/forms/SoilTestForm";
 import FrostAlertBanner from "@/components/FrostAlertBanner";
+import { acresToPreferred, areaUnitLabel, defaultAreaUnit } from "@/lib/units";
 
 type Field = {
   id: string;
@@ -18,6 +19,7 @@ type Field = {
   soil_tests: { id: string; test_date: string }[];
   map_lat: number | null;
   map_lng: number | null;
+  size_acres: number | null;
 };
 type Crop = { id: string; name: string; crop_family: string | null };
 
@@ -105,6 +107,8 @@ export default function FieldsClient({
       {fields.map((f) => {
         const detail = details[f.id];
         const expanded = expandedId === f.id;
+        const unit = defaultAreaUnit(areaUnit);
+        const displaySize = f.size_acres != null ? acresToPreferred(f.size_acres, unit) : null;
         return (
           <div key={f.id} className="card overflow-hidden">
             <button
@@ -117,6 +121,7 @@ export default function FieldsClient({
                   {f.is_high_tunnel && <span className="badge bg-blue-100 text-blue-700">High tunnel</span>}
                 </div>
                 <div className="text-xs text-stone-400 mt-0.5">
+                  {displaySize != null && `${Math.round(displaySize * 100) / 100} ${areaUnitLabel(unit)} · `}
                   {f.field_rows.length > 0 ? `${f.field_rows.length} rows/beds` : "Tracked as whole field"}
                   {" · "}{f.plantings.length} planting{f.plantings.length === 1 ? "" : "s"}
                   {" · "}{f.soil_tests.length} soil test{f.soil_tests.length === 1 ? "" : "s"}

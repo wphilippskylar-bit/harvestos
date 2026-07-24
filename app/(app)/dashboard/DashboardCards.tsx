@@ -16,6 +16,18 @@ export const DASHBOARD_CARDS = [
   { key: "recent_batches", label: "Recent batches" },
 ];
 
+// Shared by DashboardCards (rendering) and DashboardCustomizeSettings (the reorder/hide UI in
+// Settings) — both need to take a saved custom order and produce the full card list in the right
+// sequence, with any card not mentioned in the saved order falling back to its default position at
+// the end. Previously duplicated in both files; keeping one implementation avoids them drifting.
+export function resolveCardOrder(cardOrder: string[] | null): typeof DASHBOARD_CARDS {
+  if (!cardOrder || cardOrder.length === 0) return DASHBOARD_CARDS;
+  return [
+    ...cardOrder.map((key) => DASHBOARD_CARDS.find((c) => c.key === key)).filter((c): c is typeof DASHBOARD_CARDS[number] => !!c),
+    ...DASHBOARD_CARDS.filter((c) => !cardOrder.includes(c.key)),
+  ];
+}
+
 type Goal = { id: string; title: string; target_value: number | null; current_value: number };
 type WatchlistItem = { id: string; report_title: string };
 type Batch = { id: string; batch_id: string; crop_name_snapshot: string; tray_amount: number; plant_date: string; status: string };
@@ -35,9 +47,7 @@ export default function DashboardCards({
   marketWatchlist: WatchlistItem[];
   batches: Batch[];
 }) {
-  const order = cardOrder && cardOrder.length > 0
-    ? [...cardOrder.filter((k) => DASHBOARD_CARDS.some((c) => c.key === k)), ...DASHBOARD_CARDS.map((c) => c.key).filter((k) => !cardOrder.includes(k))]
-    : DASHBOARD_CARDS.map((c) => c.key);
+  const order = resolveCardOrder(cardOrder).map((c) => c.key);
   const visible = order.filter((k) => !hiddenCards.includes(k));
 
   const cardsByKey: Record<string, React.ReactNode> = {

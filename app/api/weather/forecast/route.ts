@@ -17,8 +17,13 @@ export async function GET(request: NextRequest) {
 
   const lat = request.nextUrl.searchParams.get("lat");
   const lng = request.nextUrl.searchParams.get("lng");
-  if (!lat || !lng) {
-    return NextResponse.json({ error: "lat and lng are required" }, { status: 400 });
+  const latNum = lat ? Number(lat) : NaN;
+  const lngNum = lng ? Number(lng) : NaN;
+  // Validate before ever hitting NOAA — a garbage or out-of-range value used to sail through to
+  // NOAA and come back as a generic 404 ("no forecast for this location"), which is misleading for
+  // what's actually a bad-input case rather than a real out-of-coverage location.
+  if (!lat || !lng || Number.isNaN(latNum) || Number.isNaN(lngNum) || latNum < -90 || latNum > 90 || lngNum < -180 || lngNum > 180) {
+    return NextResponse.json({ error: "lat and lng must be valid coordinates" }, { status: 400 });
   }
 
   try {

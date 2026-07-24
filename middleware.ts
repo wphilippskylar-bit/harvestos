@@ -35,6 +35,14 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/signup") ||
     request.nextUrl.pathname.startsWith("/auth");
 
+  // Terms/Privacy need to be readable by someone who isn't signed in yet (e.g. clicking the link
+  // from the signup form before creating an account), and shouldn't redirect a logged-in user away
+  // either — unlike /login, there's no reason to bounce someone off these pages just because
+  // they're authenticated.
+  const isPublicLegalRoute = request.nextUrl.pathname.startsWith("/terms") ||
+    request.nextUrl.pathname.startsWith("/privacy");
+  if (isPublicLegalRoute) return response;
+
   if (!user && !isAuthRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";

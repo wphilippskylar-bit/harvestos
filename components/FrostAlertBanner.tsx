@@ -42,8 +42,11 @@ export default function FrostAlertBanner({ fields }: { fields: Field[] }) {
     }
     load();
     return () => { cancelled = true; };
+    // Re-fetch when the set of fields OR any field's pinned location changes — keying on IDs
+    // alone missed the case where an existing field gets re-pinned to a new spot on the map, which
+    // would silently keep showing forecasts for the old location.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fields.map((f) => f.id).join(",")]);
+  }, [fields.map((f) => `${f.id}:${f.map_lat}:${f.map_lng}`).join(",")]);
 
   if (mappedFields.length === 0 || loading) return null;
 

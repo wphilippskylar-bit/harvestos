@@ -20,14 +20,21 @@ export async function autoPinMarketReports(supabase: any, orgId: string, operati
       const data = await res.json();
       const top = data.reports?.[0];
       if (top?.slug_id) {
-        await supabase.from("market_watchlist").insert({
+        const { error } = await supabase.from("market_watchlist").insert({
           org_id: orgId,
           report_slug: top.slug_id,
           report_title: top.report_title,
         });
+        // Best-effort by design (this shouldn't block account creation), but a real insert failure
+        // — RLS denial, a bad column, anything other than "no reports matched" — is worth knowing
+        // about during development rather than disappearing into the same catch as "not configured".
+        if (error) console.warn(`Could not auto-pin "${q}":`, error.message);
       }
-    } catch {
-      // Market pricing likely isn't configured yet (no API key) — safe to skip.
+    } catch (err) {
+      // Market pricing likely isn't configured yet (no API key), or the network call itself
+      // failed — safe to skip either way, but log it so it's not a total black box if something
+      // else is actually wrong.
+      console.warn(`Market auto-pin search for "${q}" failed:`, err);
     }
   }
 }
