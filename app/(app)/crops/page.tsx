@@ -9,7 +9,7 @@ export default async function CropsPage() {
   return (
     <div>
       <PageHeader title="Crop Library" subtitle="Your grow protocol, by crop — soak, blackout, watering, harvest & packaging. Seeded from your real records." />
-      <CropsClient orgId={ctx.orgId} crops={crops} inventory={inventory} role={ctx.role} />
+      <CropsClient orgId={ctx.orgId} crops={crops} inventory={inventory} role={ctx.role} weightUnit={ctx.weightUnit} />
     </div>
   );
 }

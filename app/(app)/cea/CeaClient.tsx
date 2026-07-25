@@ -10,7 +10,7 @@ import CeaPlantingForm from "@/components/forms/CeaPlantingForm";
 import CeaEnvLogForm from "@/components/forms/CeaEnvLogForm";
 import { areaUnitLabel, defaultAreaUnit, sqFtToPreferred } from "@/lib/units";
 
-type Planting = { id: string; status: string; crop_name_snapshot: string | null; planted_date: string };
+type Planting = { id: string; status: string; crop_name_snapshot: string | null; planted_date: string; growing_medium?: string | null };
 type Row = { id: string; label: string };
 type Area = {
   id: string;
@@ -18,6 +18,8 @@ type Area = {
   area_type: string;
   sq_ft: number | null;
   notes: string | null;
+  last_sterilized_date?: string | null;
+  sterilization_notes?: string | null;
   cea_area_rows: Row[];
   cea_plantings: Planting[];
 };
@@ -39,6 +41,22 @@ const AREA_TYPE_LABELS: Record<string, string> = {
   hydroponic: "Hydroponic",
   other: "Other",
 };
+
+const GROWING_MEDIUM_LABELS: Record<string, string> = {
+  hydroponic_mat: "Hydroponic mat",
+  rockwool: "Rockwool",
+  nft_channel: "NFT channel",
+  coco_coir: "Coco coir",
+  soil: "Soil",
+  perlite_vermiculite: "Perlite / vermiculite",
+  other: "Other medium",
+};
+
+function daysSince(dateStr: string): number {
+  const then = new Date(dateStr);
+  const now = new Date();
+  return Math.floor((now.getTime() - then.getTime()) / (1000 * 60 * 60 * 24));
+}
 
 export default function CeaClient({
   orgId, role, areas, crops = [], weightUnit, areaUnit,
@@ -146,6 +164,17 @@ export default function CeaClient({
               <div className="border-t border-stone-100 px-5 py-4 space-y-5">
                 {a.notes && <p className="text-xs text-stone-400">{a.notes}</p>}
 
+                {(a.last_sterilized_date || a.sterilization_notes) && (
+                  <div className="text-xs text-stone-500 flex items-center gap-1.5">
+                    <span className="badge bg-stone-100 text-stone-600">
+                      Last sterilized: {a.last_sterilized_date
+                        ? `${a.last_sterilized_date} (${daysSince(a.last_sterilized_date)}d ago)`
+                        : "not recorded"}
+                    </span>
+                    {a.sterilization_notes && <span className="text-stone-400">{a.sterilization_notes}</span>}
+                  </div>
+                )}
+
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-sm font-semibold text-stone-700">Plantings</h3>
@@ -177,6 +206,9 @@ export default function CeaClient({
                           <span>
                             <span className="font-medium text-stone-700">{p.crop_name_snapshot ?? "Untitled"}</span>
                             {" — planted "}{p.planted_date}
+                            {p.growing_medium && (
+                              <span className="text-xs text-stone-400"> · {GROWING_MEDIUM_LABELS[p.growing_medium] ?? p.growing_medium}</span>
+                            )}
                           </span>
                           <span className="badge bg-stone-100 text-stone-600 capitalize">{p.status}</span>
                         </div>

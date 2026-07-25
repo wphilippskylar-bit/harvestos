@@ -18,8 +18,8 @@ const TABS = [
 ] as const;
 
 export default function BatchesClient({
-  orgId, batches, crops, inventory,
-}: { orgId: string; batches: any[]; crops: any[]; inventory: any[] }) {
+  orgId, batches, crops, inventory, weightUnit,
+}: { orgId: string; batches: any[]; crops: any[]; inventory: any[]; weightUnit?: string }) {
   const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("current");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -68,7 +68,7 @@ export default function BatchesClient({
           </button>
         )}
       </div>
-      {showForm && <BatchForm orgId={orgId} crops={crops} inventory={inventory} onDone={() => setShowForm(false)} />}
+      {showForm && <BatchForm orgId={orgId} crops={crops} inventory={inventory} weightUnit={weightUnit} onDone={() => setShowForm(false)} />}
 
       {visibleBatches.length === 0 ? (
         <EmptyState
@@ -140,14 +140,14 @@ export default function BatchesClient({
                   {harvestingId === b.id && (
                     <tr>
                       <td colSpan={8} className="px-4 pb-3">
-                        <HarvestForm orgId={orgId} batch={b} onDone={() => setHarvestingId(null)} />
+                        <HarvestForm orgId={orgId} batch={b} weightUnit={weightUnit} onDone={() => setHarvestingId(null)} />
                       </td>
                     </tr>
                   )}
                   {editingId === b.id && (
                     <tr>
                       <td colSpan={8} className="px-4 pb-3">
-                        <BatchForm orgId={orgId} crops={crops} inventory={inventory} batch={b} onDone={() => setEditingId(null)} />
+                        <BatchForm orgId={orgId} crops={crops} inventory={inventory} batch={b} weightUnit={weightUnit} onDone={() => setEditingId(null)} />
                       </td>
                     </tr>
                   )}

@@ -110,23 +110,39 @@ export default function MarketClient({ orgId, watchlist, isEditor }: { orgId: st
   // typical farmer/rancher actually cares about (date, price, count/head, quality/grade) by
   // keyword match against whatever this report's field names are, and default to just those, with
   // an "Show all columns" toggle for anyone who wants the full USDA report.
-  const PRIORITY_PATTERNS = [
+  // Price/rate columns go FIRST and are never budget-limited — that's the actual number a farmer
+  // opened this report to see. Everything else (dates, head count, grade/class, weight) fills in
+  // after, capped so the default view doesn't get overwhelming. Previously date-ish columns were
+  // checked before price columns and there's often more than one USDA date field (report_date,
+  // begin_date, end_date, published_date…) — those alone could fill the whole 6-column budget
+  // before a single price column was ever added, which is exactly the "missing prices" bug.
+  const PRICE_PATTERNS = [/price/i, /rate/i, /\bavg\b/i, /wtd/i];
+  const OTHER_PATTERNS = [
     /^report_date$/i, /date/i,
-    /price/i, /rate/i,
     /head/i, /count/i, /qty|quantity|receipts/i,
-    /grade/i, /quality/i, /class/i, /weight/i,
+    /grade/i, /quality/i, /class/i, /weight/i, /commodity/i, /market_location/i,
   ];
   const priorityColumns = (() => {
-    const matched: string[] = [];
-    for (const pattern of PRIORITY_PATTERNS) {
+    const priceMatches: string[] = [];
+    for (const pattern of PRICE_PATTERNS) {
       for (const c of columns) {
-        if (pattern.test(c) && !matched.includes(c)) matched.push(c);
+        if (pattern.test(c) && !priceMatches.includes(c)) priceMatches.push(c);
       }
     }
-    return matched.length > 0 ? matched.slice(0, 6) : columns.slice(0, 6);
+    const OTHER_BUDGET = 6;
+    const otherMatches: string[] = [];
+    for (const pattern of OTHER_PATTERNS) {
+      for (const c of columns) {
+        if (otherMatches.length >= OTHER_BUDGET) break;
+        if (pattern.test(c) && !priceMatches.includes(c) && !otherMatches.includes(c)) otherMatches.push(c);
+      }
+    }
+    const combined = [...priceMatches, ...otherMatches];
+    return combined.length > 0 ? combined : columns.slice(0, 6);
   })();
   const displayColumns = showAllColumns ? columns : priorityColumns;
   const hasMoreColumns = columns.length > priorityColumns.length;
+  const isPriceColumn = (c: string) => PRICE_PATTERNS.some((p) => p.test(c));
 
   return (
     <div className="space-y-4">
@@ -250,13 +266,27 @@ export default function MarketClient({ orgId, watchlist, isEditor }: { orgId: st
               <table className="w-full text-sm">
                 <thead className="bg-stone-50 text-xs text-stone-500 uppercase tracking-wide">
                   <tr>
-                    {displayColumns.map((c) => <th key={c} className="text-left py-3 px-4 whitespace-nowrap">{c.replace(/_/g, " ")}</th>)}
+                    {displayColumns.map((c) => (
+                      <th
+                        key={c}
+                        className={`text-left py-3 px-4 whitespace-nowrap ${isPriceColumn(c) ? "text-brand-700" : ""}`}
+                      >
+                        {c.replace(/_/g, " ")}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-100">
                   {rows.slice(0, 50).map((row, i) => (
                     <tr key={i}>
-                      {displayColumns.map((c) => <td key={c} className="py-2 px-4 text-stone-600 whitespace-nowrap">{String(row[c] ?? "")}</td>)}
+                      {displayColumns.map((c) => (
+                        <td
+                          key={c}
+                          className={`py-2 px-4 whitespace-nowrap ${isPriceColumn(c) ? "font-semibold text-brand-700" : "text-stone-600"}`}
+                        >
+                          {String(row[c] ?? "")}
+                        </td>
+                      ))}
                     </tr>
                   ))}
                 </tbody>

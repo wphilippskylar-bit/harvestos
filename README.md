@@ -639,3 +639,92 @@ call — happy to build that phase whenever you're ready for it.
 - The "Crop Library" protocol fields (soak time, blackout days, watering schedule, etc.) come from
   your real tracking sheet via the seed migration — once your Supabase project is running, that
   page will be fully populated, not just the shortened demo version.
+
+## Password reset ("Forgot password?") — no migration needed
+
+Log in page now has a "Forgot password?" link (shown next to the Password field) that switches
+into a lightweight forgot-password mode: enter your email, get a reset link, click it, set a new
+password. This uses Supabase Auth's built-in recovery flow — no new tables or migrations required.
+
+- `app/login/page.tsx` — added the `forgot` mode: email-only form, calls
+  `supabase.auth.resetPasswordForEmail(email, { redirectTo: "<your-domain>/auth/reset-password" })`.
+  The confirmation message is intentionally the same whether or not the email has an account
+  (Supabase itself doesn't reveal that either, to avoid leaking who's registered). Both the login
+  and reset-password forms also got a "Show/Hide" toggle on the password field so people can verify
+  what they typed before submitting.
+- `app/auth/reset-password/page.tsx` (new) — the landing page for the emailed link. Supabase's
+  browser client automatically exchanges the recovery token in the URL for a session on load, so
+  this page just waits for that, then shows a "set new password" form (with its own Show/Hide
+  toggle) calling `supabase.auth.updateUser({ password })`. If the link is invalid or expired, it
+  shows an error with a link back to `/login`.
+- `middleware.ts` — added a small carve-out so a logged-in recovery session isn't redirected away
+  from `/auth/reset-password` before the person gets a chance to set their new password (every
+  other `/login`/`/signup`/`/auth` route still redirects an already-logged-in visitor to
+  `/dashboard`, as before).
+
+**One thing to double check in Supabase**: under Authentication → URL Configuration, make sure
+your production domain is added to "Redirect URLs" (e.g. `https://your-domain.com/auth/reset-password`)
+or the emailed link will bounce. Same idea as the callback URLs you already set up for the app
+generally — if that's already configured broadly (e.g. a wildcard), there's nothing extra to do.
+
+## CEA: growing medium + sterilization tracking (migration 0025)
+
+Two small opportunistic fields flagged during the earlier roadmap review:
+
+- **Growing medium** — new optional field on each CEA planting (hydroponic mat, rockwool, NFT
+  channel, coco coir, soil, perlite/vermiculite, other). Shows up next to the crop name in the
+  Plantings list once set.
+- **Sterilization tracking** — new optional "last sterilized" date + notes on each CEA area
+  (the space/equipment, not the planting — it covers whatever's growing there across cycles). When
+  set, shows as a badge at the top of the area's expanded view with days-since-last-sterilized.
+
+Run `0025_cea_medium_sterilization.sql` after `0024_schedule_sops.sql`. Both new columns are
+nullable/additive — no changes needed to existing data.
+
+## Weight units: grams/kilograms + seamless conversion everywhere (migration 0026)
+
+Building on the existing weight-unit preference (lb/oz from migration 0022), Settings → Units now
+also offers **Grams (g)** and **Kilograms (kg)** — and every place a weight gets entered lets you
+pick the unit for that specific entry, converting seamlessly to a consistent stored value
+regardless of which unit you used.
+
+- `lib/units.ts` — grams is now the canonical conversion point for weight: `weightToGrams`,
+  `gramsToWeight`, and `convertWeight(value, from, to)` handle any of lb/oz/g/kg to any other,
+  through grams internally. `WEIGHT_UNIT_OPTIONS` is the single source of truth for the dropdown
+  list, reused by Settings and every weight-entry form.
+- **Settings → Units** — the Weight dropdown now shows all four units.
+- **CEA plantings** (`CeaPlantingForm.tsx`) — the yield-amount unit dropdown now includes g/kg
+  alongside lb/oz/each.
+- **Batches** (`BatchForm.tsx`) — "Dry seed weight" now has its own unit dropdown next to the
+  amount; whatever you enter converts to grams before saving (grams is what the seed-inventory
+  math is compared against), and editing a batch shows the value pre-converted back to your org's
+  preferred unit.
+- **Harvest logging** (`HarvestForm.tsx`, opened via "Harvest" on a batch in Batches) — same
+  pattern: pick the unit you're weighing in (a kitchen scale in grams, a hanging scale in
+  pounds, whatever's on hand), fresh/waste weight both convert to grams on save.
+
+Run `0026_weight_unit_g_kg.sql` after `0025_cea_medium_sterilization.sql` — it only widens the
+`organizations.weight_unit` check constraint to allow `'g'`/`'kg'` in addition to `'lb'`/`'oz'`;
+existing orgs and data are unaffected.
+
+## Weight units, part 2: Crop Library tray/clamshell weights + market price display fix
+
+- **Crop Library** (`CropForm.tsx`) — "Weight per tray" and "Weight per clamshell" now have their
+  own unit dropdown too, same pattern as batches/harvests. These stay stored canonically in ounces
+  (a Postgres trigger, `sync_sale_inventory`, multiplies a "by tray"/"by clamshell" sale's quantity
+  by these values assuming ounces, to deduct harvested inventory correctly) — the dropdown just
+  changes what unit you enter/see them in, converting to oz before saving.
+  - Note: `batches.sales_price_per_oz` was found to be a dead column — no form sets it and nothing
+    reads it anywhere in the app. Left as-is; flag if you actually want this wired up somewhere.
+
+- **Market Prices page** — fixed a real bug where reported prices could be silently missing from
+  the default table view. The "which columns to show by default" logic picked columns by keyword
+  match (date, price, head count, grade, etc.) but capped the total at 6 and checked date-related
+  patterns before price-related ones — a USDA report with several date fields (report_date,
+  begin_date, end_date, published_date) could fill the entire 6-column budget before a single price
+  column was ever added. Price/rate columns are now always included first, with everything else
+  filling in after within its own budget — and price columns are now visually bolded/highlighted in
+  the table so they're easy to spot regardless of column order. "Show all columns" still works for
+  seeing the full USDA report.
+
+No new migration for either change.

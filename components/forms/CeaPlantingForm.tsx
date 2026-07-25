@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import { errorMessage } from "@/lib/errors";
-import { defaultWeightUnit } from "@/lib/units";
+import { defaultWeightUnit, WEIGHT_UNIT_OPTIONS } from "@/lib/units";
 
 type Crop = { id: string; name: string };
 type Row = { id: string; label: string };
@@ -15,6 +15,17 @@ const STATUSES = [
   { key: "growing", label: "Growing" },
   { key: "harvested", label: "Harvested" },
   { key: "failed", label: "Failed" },
+];
+
+const GROWING_MEDIA = [
+  { key: "", label: "— Not tracked —" },
+  { key: "hydroponic_mat", label: "Hydroponic mat" },
+  { key: "rockwool", label: "Rockwool" },
+  { key: "nft_channel", label: "NFT channel" },
+  { key: "coco_coir", label: "Coco coir" },
+  { key: "soil", label: "Soil" },
+  { key: "perlite_vermiculite", label: "Perlite / vermiculite" },
+  { key: "other", label: "Other" },
 ];
 
 export default function CeaPlantingForm({
@@ -37,6 +48,7 @@ export default function CeaPlantingForm({
   const [status, setStatus] = useState("planted");
   const [yieldAmount, setYieldAmount] = useState("");
   const [yieldUnit, setYieldUnit] = useState<string>(defaultWeightUnit(weightUnit));
+  const [growingMedium, setGrowingMedium] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,6 +71,7 @@ export default function CeaPlantingForm({
         status,
         yield_amount: yieldAmount ? Number(yieldAmount) : null,
         yield_unit: yieldAmount ? yieldUnit : null,
+        growing_medium: growingMedium || null,
         notes: notes || null,
       });
       if (error) throw error;
@@ -118,11 +131,16 @@ export default function CeaPlantingForm({
           <div className="flex gap-2">
             <input className="input" type="number" step="0.1" min="0" value={yieldAmount} onChange={(e) => setYieldAmount(e.target.value)} />
             <select className="input !w-24" value={yieldUnit} onChange={(e) => setYieldUnit(e.target.value)}>
-              <option value="lb">lb</option>
-              <option value="oz">oz</option>
+              {WEIGHT_UNIT_OPTIONS.map((u) => <option key={u.key} value={u.key}>{u.key}</option>)}
               <option value="each">each</option>
             </select>
           </div>
+        </div>
+        <div>
+          <label className="label">Growing medium (optional)</label>
+          <select className="input" value={growingMedium} onChange={(e) => setGrowingMedium(e.target.value)}>
+            {GROWING_MEDIA.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
+          </select>
         </div>
         <div className="sm:col-span-3">
           <label className="label">Notes</label>

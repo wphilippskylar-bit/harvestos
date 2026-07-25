@@ -8,8 +8,8 @@ import { EmptyState } from "@/components/ui";
 import CropForm from "@/components/forms/CropForm";
 
 export default function CropsClient({
-  orgId, crops, inventory, role,
-}: { orgId: string; crops: any[]; inventory: any[]; role: string }) {
+  orgId, crops, inventory, role, weightUnit,
+}: { orgId: string; crops: any[]; inventory: any[]; role: string; weightUnit?: string }) {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const supabase = createClient();
@@ -31,7 +31,7 @@ export default function CropsClient({
       <div className="flex justify-end mb-4">
         {!showForm && <button className="btn-primary" onClick={() => { setShowForm(true); setEditingId(null); }}>+ Add crop</button>}
       </div>
-      {showForm && <CropForm orgId={orgId} onDone={() => setShowForm(false)} />}
+      {showForm && <CropForm orgId={orgId} weightUnit={weightUnit} onDone={() => setShowForm(false)} />}
 
       {crops.length === 0 ? (
         <EmptyState title="No crops yet" hint="Add your first crop above, or crops are seeded automatically when your farm is created." />
@@ -42,7 +42,7 @@ export default function CropsClient({
             if (editingId === c.id) {
               return (
                 <div key={c.id} className="md:col-span-2">
-                  <CropForm orgId={orgId} crop={c} onDone={() => setEditingId(null)} />
+                  <CropForm orgId={orgId} crop={c} weightUnit={weightUnit} onDone={() => setEditingId(null)} />
                 </div>
               );
             }

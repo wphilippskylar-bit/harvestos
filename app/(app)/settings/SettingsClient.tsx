@@ -8,6 +8,7 @@ import type { OrgContext } from "@/lib/data";
 import { pushSupported, getExistingPushSubscription, enablePushNotifications, disablePushNotifications } from "@/lib/push";
 import NavOrderSettings from "@/components/NavOrderSettings";
 import DashboardCustomizeSettings from "@/components/DashboardCustomizeSettings";
+import { WEIGHT_UNIT_OPTIONS } from "@/lib/units";
 
 const PLAN_TIERS: Record<string, { label: string; price: string; seats: string }> = {
   free: { label: "Free (you)", price: "$0", seats: "Up to 3 seats" },
@@ -285,8 +286,7 @@ export default function SettingsClient({
               disabled={!isEditor || savingWeightUnit}
               onChange={(e) => changeWeightUnit(e.target.value)}
             >
-              <option value="lb">Pounds (lb)</option>
-              <option value="oz">Ounces (oz)</option>
+              {WEIGHT_UNIT_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
             </select>
           </div>
           <div>

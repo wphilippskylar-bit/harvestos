@@ -4,18 +4,23 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
-
-const OZ_TO_G = 28.349523125;
+import { defaultWeightUnit, weightToGrams, WEIGHT_UNIT_OPTIONS, type WeightUnit } from "@/lib/units";
 
 type Batch = { id: string; batch_id: string; dry_seed_weight_g: number | null };
 
-export default function HarvestForm({ orgId, batch, onDone }: { orgId: string; batch: Batch; onDone: () => void }) {
+export default function HarvestForm({
+  orgId, batch, weightUnit, onDone,
+}: { orgId: string; batch: Batch; weightUnit?: string; onDone: () => void }) {
   const supabase = createClient();
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [harvestDate, setHarvestDate] = useState(new Date().toISOString().slice(0, 10));
   const [freshOz, setFreshOz] = useState("");
   const [wasteOz, setWasteOz] = useState("");
+  // Lets someone enter a harvest weight in whatever unit is easiest for them (a kitchen scale in
+  // grams, a hanging scale in pounds, etc.) — always converted to grams before saving, so the
+  // stored value stays consistent regardless of which unit was used to enter it.
+  const [unit, setUnit] = useState<WeightUnit>(defaultWeightUnit(weightUnit));
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -33,8 +38,8 @@ export default function HarvestForm({ orgId, batch, onDone }: { orgId: string; b
     setError(null);
     try {
       if (DEMO_MODE) { onDone(); return; }
-      const freshG = freshOz ? Number(freshOz) * OZ_TO_G : null;
-      const wasteG = wasteOz ? Number(wasteOz) * OZ_TO_G : null;
+      const freshG = freshOz ? weightToGrams(Number(freshOz), unit) : null;
+      const wasteG = wasteOz ? weightToGrams(Number(wasteOz), unit) : null;
       const yieldRatio = freshG && batch.dry_seed_weight_g ? freshG / batch.dry_seed_weight_g : null;
 
       let photoUrl: string | undefined;
@@ -79,12 +84,18 @@ export default function HarvestForm({ orgId, batch, onDone }: { orgId: string; b
           <input className="input !py-1.5 text-sm" type="date" value={harvestDate} onChange={(e) => setHarvestDate(e.target.value)} />
         </div>
         <div>
-          <label className="label !text-[11px]">Fresh harvest weight (oz)</label>
+          <label className="label !text-[11px]">Fresh harvest weight</label>
           <input className="input !py-1.5 text-sm" type="number" step="0.1" value={freshOz} onChange={(e) => setFreshOz(e.target.value)} required />
         </div>
         <div>
-          <label className="label !text-[11px]">Waste (oz, optional)</label>
+          <label className="label !text-[11px]">Waste (optional)</label>
           <input className="input !py-1.5 text-sm" type="number" step="0.1" value={wasteOz} onChange={(e) => setWasteOz(e.target.value)} />
+        </div>
+        <div>
+          <label className="label !text-[11px]">Unit</label>
+          <select className="input !py-1.5 text-sm" value={unit} onChange={(e) => setUnit(e.target.value as WeightUnit)}>
+            {WEIGHT_UNIT_OPTIONS.map((u) => <option key={u.key} value={u.key}>{u.key}</option>)}
+          </select>
         </div>
       </div>
       <div>

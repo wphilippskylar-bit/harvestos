@@ -16,9 +16,11 @@ const OPERATION_TYPE_OPTIONS = [
 export default function LoginPage() {
   const router = useRouter();
   const supabase = createClient();
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [forgotSent, setForgotSent] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [orgName, setOrgName] = useState("");
   const [operationTypes, setOperationTypes] = useState<string[]>(["microgreens"]);
   const [autoPinMarket, setAutoPinMarket] = useState(true);
@@ -38,6 +40,17 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
     try {
+      if (mode === "forgot") {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/auth/reset-password`,
+        });
+        if (error) throw error;
+        // Don't reveal whether the email exists in the system either way — Supabase itself
+        // returns success regardless (to avoid leaking which emails have accounts), and the UI
+        // should match that rather than implying "if this fails, that email isn't registered."
+        setForgotSent(true);
+        return;
+      }
       if (mode === "login") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -126,31 +139,53 @@ export default function LoginPage() {
         </div>
 
         <div className="card p-6">
-          <div className="flex rounded-lg bg-stone-100 p-1 mb-6 text-sm font-medium">
-            <button
-              className={`flex-1 rounded-md py-1.5 transition-colors ${mode === "login" ? "bg-white shadow-sm text-brand-700" : "text-stone-500"}`}
-              onClick={() => setMode("login")}
-              type="button"
-            >
-              Log in
-            </button>
-            <button
-              className={`flex-1 rounded-md py-1.5 transition-colors ${mode === "signup" ? "bg-white shadow-sm text-brand-700" : "text-stone-500"}`}
-              onClick={() => setMode("signup")}
-              type="button"
-            >
-              Create account
-            </button>
-          </div>
+          {mode !== "forgot" && (
+            <div className="flex rounded-lg bg-stone-100 p-1 mb-6 text-sm font-medium">
+              <button
+                className={`flex-1 rounded-md py-1.5 transition-colors ${mode === "login" ? "bg-white shadow-sm text-brand-700" : "text-stone-500"}`}
+                onClick={() => setMode("login")}
+                type="button"
+              >
+                Log in
+              </button>
+              <button
+                className={`flex-1 rounded-md py-1.5 transition-colors ${mode === "signup" ? "bg-white shadow-sm text-brand-700" : "text-stone-500"}`}
+                onClick={() => setMode("signup")}
+                type="button"
+              >
+                Create account
+              </button>
+            </div>
+          )}
 
+          {mode === "forgot" && forgotSent ? (
+            <div className="text-center space-y-3">
+              <p className="text-sm text-stone-600">
+                If an account exists for <span className="font-medium">{email}</span>, a password
+                reset link is on its way — check your inbox (and spam folder).
+              </p>
+              <button
+                type="button"
+                className="text-sm text-brand-700 hover:underline"
+                onClick={() => { setMode("login"); setForgotSent(false); }}
+              >
+                ← Back to log in
+              </button>
+            </div>
+          ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
-            {mode === "signup" && (
+            {mode === "forgot" && (
+              <p className="text-sm text-stone-500 -mt-1 mb-1">
+                Enter the email on your account and we'll send a link to reset your password.
+              </p>
+            )}
+            {mode !== "forgot" && mode === "signup" && (
               <div>
                 <label className="label">Farm / company name</label>
                 <input className="input" value={orgName} onChange={(e) => setOrgName(e.target.value)} placeholder="Aiyahuta Craft Farm" required />
               </div>
             )}
-            {mode === "signup" && (
+            {mode !== "forgot" && mode === "signup" && (
               <div>
                 <label className="label">What do you grow or raise?</label>
                 <p className="text-xs text-stone-400 mb-2">Turns the matching tabs on — you can add or remove these anytime in Settings.</p>
@@ -181,15 +216,52 @@ export default function LoginPage() {
               <label className="label">Email</label>
               <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
-            <div>
-              <label className="label">Password</label>
-              <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={6} required />
-            </div>
+            {mode !== "forgot" && (
+              <div>
+                <div className="flex items-center justify-between">
+                  <label className="label">Password</label>
+                  {mode === "login" && (
+                    <button
+                      type="button"
+                      className="text-xs text-brand-700 hover:underline"
+                      onClick={() => { setMode("forgot"); setError(null); }}
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+                </div>
+                <div className="relative">
+                  <input
+                    className="input pr-16"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    minLength={6}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-stone-500 hover:text-stone-700"
+                    onClick={() => setShowPassword((v) => !v)}
+                    tabIndex={-1}
+                  >
+                    {showPassword ? "Hide" : "Show"}
+                  </button>
+                </div>
+              </div>
+            )}
             {error && <p className="text-sm text-red-600">{error}</p>}
             <button className="btn-primary w-full" type="submit" disabled={loading}>
-              {loading ? "Please wait…" : mode === "login" ? "Log in" : "Create account"}
+              {loading
+                ? "Please wait…"
+                : mode === "login"
+                ? "Log in"
+                : mode === "forgot"
+                ? "Send reset link"
+                : "Create account"}
             </button>
           </form>
+          )}
         </div>
 
         <p className="text-center text-xs text-stone-400 mt-6">

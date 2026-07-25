@@ -12,7 +12,7 @@ export default async function BatchesPage() {
   return (
     <div>
       <PageHeader title="Batches" subtitle="Every planting, tracked from sow to sale. Batch IDs auto-generate or you can set your own." />
-      <BatchesClient orgId={ctx.orgId} batches={batches} crops={crops} inventory={inventory} />
+      <BatchesClient orgId={ctx.orgId} batches={batches} crops={crops} inventory={inventory} weightUnit={ctx.weightUnit} />
     </div>
   );
 }

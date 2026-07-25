@@ -49,7 +49,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (user && isAuthRoute) {
+  // /auth/reset-password is the one auth route a LOGGED-IN user is supposed to land on: clicking
+  // a password-reset email link establishes a real (recovery-scoped) session before the person has
+  // had a chance to actually set their new password. Bouncing them straight to /dashboard here
+  // would strand them mid-reset with no way back to the form. Only /login and /signup should still
+  // redirect an already-logged-in visitor away.
+  const isRecoveryRoute = request.nextUrl.pathname.startsWith("/auth/reset-password");
+  if (user && isAuthRoute && !isRecoveryRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);

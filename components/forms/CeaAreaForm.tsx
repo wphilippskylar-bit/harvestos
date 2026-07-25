@@ -22,6 +22,8 @@ export default function CeaAreaForm({ orgId, areaUnit, onDone }: { orgId: string
   const [name, setName] = useState("");
   const [areaType, setAreaType] = useState("greenhouse");
   const [sqFt, setSqFt] = useState("");
+  const [lastSterilizedDate, setLastSterilizedDate] = useState("");
+  const [sterilizationNotes, setSterilizationNotes] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +39,8 @@ export default function CeaAreaForm({ orgId, areaUnit, onDone }: { orgId: string
         name,
         area_type: areaType,
         sq_ft: sqFt ? preferredToSqFt(Number(sqFt), unit) : null,
+        last_sterilized_date: lastSterilizedDate || null,
+        sterilization_notes: sterilizationNotes || null,
         notes: notes || null,
       });
       if (error) throw error;
@@ -65,6 +69,14 @@ export default function CeaAreaForm({ orgId, areaUnit, onDone }: { orgId: string
         <div>
           <label className="label">Size ({areaUnitLabel(unit)})</label>
           <input className="input" type="number" step={unit === "acres" ? "0.01" : "1"} value={sqFt} onChange={(e) => setSqFt(e.target.value)} />
+        </div>
+        <div>
+          <label className="label">Last sterilized (optional)</label>
+          <input className="input" type="date" value={lastSterilizedDate} onChange={(e) => setLastSterilizedDate(e.target.value)} />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="label">Sterilization notes (optional)</label>
+          <input className="input" value={sterilizationNotes} onChange={(e) => setSterilizationNotes(e.target.value)} placeholder="e.g. bleach rinse between cycles" />
         </div>
         <div className="sm:col-span-3">
           <label className="label">Notes (optional)</label>

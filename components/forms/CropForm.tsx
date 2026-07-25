@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
+import { convertWeight, defaultWeightUnit, WEIGHT_UNIT_OPTIONS, type WeightUnit } from "@/lib/units";
 
 type Crop = {
   id: string;
@@ -32,10 +33,17 @@ type Crop = {
   applicable_to: string[] | null;
 };
 
-export default function CropForm({ orgId, crop, onDone }: { orgId: string; crop?: Crop; onDone: () => void }) {
+export default function CropForm({
+  orgId, crop, weightUnit, onDone,
+}: { orgId: string; crop?: Crop; weightUnit?: string; onDone: () => void }) {
   const supabase = createClient();
   const router = useRouter();
   const isEdit = !!crop;
+  // oz_per_tray / oz_per_clamshell are stored canonically in ounces — a Postgres trigger
+  // (sync_sale_inventory) multiplies a "by tray"/"by clamshell" sale's quantity by these values
+  // assuming they're literally ounces, so we keep that storage unit fixed and just let entry
+  // happen in whichever unit is easiest, converting to oz before saving.
+  const ozEntryUnit = defaultWeightUnit(weightUnit);
 
   const [name, setName] = useState(crop?.name ?? "");
   const [isPremium, setIsPremium] = useState(crop?.is_premium ?? false);
@@ -55,8 +63,14 @@ export default function CropForm({ orgId, crop, onDone }: { orgId: string; crop?
   const [seedCostPerG, setSeedCostPerG] = useState(crop?.seed_cost_per_g?.toString() ?? "");
   const [sowRateG, setSowRateG] = useState(crop?.sow_rate_g?.toString() ?? "");
   const [lowStockTrays, setLowStockTrays] = useState(crop?.low_stock_threshold_trays?.toString() ?? "");
-  const [ozPerTray, setOzPerTray] = useState(crop?.oz_per_tray?.toString() ?? "");
-  const [ozPerClamshell, setOzPerClamshell] = useState(crop?.oz_per_clamshell?.toString() ?? "");
+  const [trayWeightUnit, setTrayWeightUnit] = useState<WeightUnit>(ozEntryUnit);
+  const [ozPerTray, setOzPerTray] = useState(
+    crop?.oz_per_tray != null ? convertWeight(crop.oz_per_tray, "oz", ozEntryUnit).toString() : ""
+  );
+  const [clamshellWeightUnit, setClamshellWeightUnit] = useState<WeightUnit>(ozEntryUnit);
+  const [ozPerClamshell, setOzPerClamshell] = useState(
+    crop?.oz_per_clamshell != null ? convertWeight(crop.oz_per_clamshell, "oz", ozEntryUnit).toString() : ""
+  );
   const [notes, setNotes] = useState(crop?.notes ?? "");
   const [cropFamily, setCropFamily] = useState(crop?.crop_family ?? "");
   const [applicableTo, setApplicableTo] = useState<string[]>(crop?.applicable_to ?? ["microgreens"]);
@@ -92,8 +106,8 @@ export default function CropForm({ orgId, crop, onDone }: { orgId: string; crop?
         seed_cost_per_g: seedCostPerG ? Number(seedCostPerG) : null,
         sow_rate_g: sowRateG ? Number(sowRateG) : null,
         low_stock_threshold_trays: lowStockTrays ? Number(lowStockTrays) : null,
-        oz_per_tray: ozPerTray ? Number(ozPerTray) : null,
-        oz_per_clamshell: ozPerClamshell ? Number(ozPerClamshell) : null,
+        oz_per_tray: ozPerTray ? convertWeight(Number(ozPerTray), trayWeightUnit, "oz") : null,
+        oz_per_clamshell: ozPerClamshell ? convertWeight(Number(ozPerClamshell), clamshellWeightUnit, "oz") : null,
         notes: notes || null,
         crop_family: cropFamily || null,
         applicable_to: applicableTo.length > 0 ? applicableTo : ["microgreens"],
@@ -203,13 +217,23 @@ export default function CropForm({ orgId, crop, onDone }: { orgId: string; crop?
         </div>
 
         <div>
-          <label className="label">Oz per tray (for tray sales)</label>
-          <input className="input" type="number" step="0.1" min="0" value={ozPerTray} onChange={(e) => setOzPerTray(e.target.value)} placeholder="e.g. 8" />
+          <label className="label">Weight per tray (for tray sales)</label>
+          <div className="flex gap-2">
+            <input className="input" type="number" step="0.1" min="0" value={ozPerTray} onChange={(e) => setOzPerTray(e.target.value)} placeholder="e.g. 8" />
+            <select className="input !w-24" value={trayWeightUnit} onChange={(e) => setTrayWeightUnit(e.target.value as WeightUnit)}>
+              {WEIGHT_UNIT_OPTIONS.map((u) => <option key={u.key} value={u.key}>{u.key}</option>)}
+            </select>
+          </div>
           <p className="text-xs text-stone-400 mt-1">Lets a "by tray" sale correctly deduct harvested inventory.</p>
         </div>
         <div>
-          <label className="label">Oz per clamshell (for clamshell sales)</label>
-          <input className="input" type="number" step="0.1" min="0" value={ozPerClamshell} onChange={(e) => setOzPerClamshell(e.target.value)} placeholder="e.g. 2" />
+          <label className="label">Weight per clamshell (for clamshell sales)</label>
+          <div className="flex gap-2">
+            <input className="input" type="number" step="0.1" min="0" value={ozPerClamshell} onChange={(e) => setOzPerClamshell(e.target.value)} placeholder="e.g. 2" />
+            <select className="input !w-24" value={clamshellWeightUnit} onChange={(e) => setClamshellWeightUnit(e.target.value as WeightUnit)}>
+              {WEIGHT_UNIT_OPTIONS.map((u) => <option key={u.key} value={u.key}>{u.key}</option>)}
+            </select>
+          </div>
         </div>
 
         <div>

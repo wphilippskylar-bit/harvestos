@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
+import { defaultWeightUnit, gramsToWeight, weightToGrams, WEIGHT_UNIT_OPTIONS, type WeightUnit } from "@/lib/units";
 
 type Crop = { id: string; name: string };
 type InventoryRow = { crop_id: string; seed_g_on_hand: number; sow_rate_g: number | null };
@@ -18,8 +19,8 @@ type Batch = {
 };
 
 export default function BatchForm({
-  orgId, crops, inventory, batch, onDone,
-}: { orgId: string; crops: Crop[]; inventory: InventoryRow[]; batch?: Batch; onDone: () => void }) {
+  orgId, crops, inventory, batch, weightUnit, onDone,
+}: { orgId: string; crops: Crop[]; inventory: InventoryRow[]; batch?: Batch; weightUnit?: string; onDone: () => void }) {
   const supabase = createClient();
   const router = useRouter();
   const isEdit = !!batch;
@@ -28,7 +29,12 @@ export default function BatchForm({
   const [plantDate, setPlantDate] = useState(batch?.plant_date ?? new Date().toISOString().slice(0, 10));
   const [trayAmount, setTrayAmount] = useState(batch?.tray_amount ?? 1);
   const [rackLocation, setRackLocation] = useState(batch?.rack_location ?? "");
-  const [dryWeight, setDryWeight] = useState(batch?.dry_seed_weight_g?.toString() ?? "");
+  // Dry seed weight is stored canonically in grams (it's compared against seed_g_on_hand below),
+  // but lets you enter/view it in whichever unit is easiest — converted seamlessly either way.
+  const [dryWeightUnit, setDryWeightUnit] = useState<WeightUnit>(defaultWeightUnit(weightUnit));
+  const [dryWeight, setDryWeight] = useState(
+    batch?.dry_seed_weight_g != null ? gramsToWeight(batch.dry_seed_weight_g, defaultWeightUnit(weightUnit)).toString() : ""
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,7 +70,7 @@ export default function BatchForm({
           plant_date: plantDate,
           tray_amount: trayAmount,
           rack_location: rackLocation || null,
-          dry_seed_weight_g: dryWeight ? Number(dryWeight) : null,
+          dry_seed_weight_g: dryWeight ? weightToGrams(Number(dryWeight), dryWeightUnit) : null,
         }).eq("id", batch.id);
         if (error) throw error;
       } else {
@@ -81,7 +87,7 @@ export default function BatchForm({
           plant_date: plantDate,
           tray_amount: trayAmount,
           rack_location: rackLocation || null,
-          dry_seed_weight_g: dryWeight ? Number(dryWeight) : null,
+          dry_seed_weight_g: dryWeight ? weightToGrams(Number(dryWeight), dryWeightUnit) : null,
           status: "germinating",
         });
         if (error) throw error;
@@ -147,8 +153,17 @@ export default function BatchForm({
           <input className="input" value={rackLocation} onChange={(e) => setRackLocation(e.target.value)} placeholder="e.g. Rack 2, tier 3" />
         </div>
         <div>
-          <label className="label">Dry seed weight (g)</label>
-          <input className="input" type="number" step="0.1" value={dryWeight} onChange={(e) => setDryWeight(e.target.value)} />
+          <label className="label">Dry seed weight</label>
+          <div className="flex gap-2">
+            <input className="input" type="number" step="0.1" value={dryWeight} onChange={(e) => setDryWeight(e.target.value)} />
+            <select
+              className="input !w-24"
+              value={dryWeightUnit}
+              onChange={(e) => setDryWeightUnit(e.target.value as WeightUnit)}
+            >
+              {WEIGHT_UNIT_OPTIONS.map((u) => <option key={u.key} value={u.key}>{u.key}</option>)}
+            </select>
+          </div>
         </div>
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}

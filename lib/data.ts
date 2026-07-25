@@ -151,7 +151,7 @@ export async function getCeaAreas(orgId: string) {
   const supabase = createClient();
   const { data } = await supabase
     .from("cea_areas")
-    .select("*, cea_area_rows(*), cea_plantings(id, status, crop_name_snapshot, planted_date)")
+    .select("*, cea_area_rows(*), cea_plantings(id, status, crop_name_snapshot, planted_date, growing_medium)")
     .eq("org_id", orgId)
     .order("name");
   return data ?? [];
