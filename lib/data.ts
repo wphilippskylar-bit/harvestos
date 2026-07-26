@@ -214,9 +214,9 @@ export async function getAnimalHealthLogs(animalId: string) {
 }
 
 export async function getComplianceReportData(orgId: string, startDate: string, endDate: string) {
-  if (DEMO_MODE) return { animals: [], healthLogs: [], grazingEvents: [] };
+  if (DEMO_MODE) return { animals: [], healthLogs: [], grazingEvents: [], plantings: [] };
   const supabase = createClient();
-  const [{ data: animals }, { data: statuses }, { data: healthLogs }, { data: grazingEvents }] = await Promise.all([
+  const [{ data: animals }, { data: statuses }, { data: healthLogs }, { data: grazingEvents }, { data: plantings }] = await Promise.all([
     supabase.from("animals").select("*").eq("org_id", orgId).order("ear_tag_number"),
     supabase.from("animal_status").select("*").eq("org_id", orgId),
     supabase
@@ -233,6 +233,15 @@ export async function getComplianceReportData(orgId: string, startDate: string, 
       .gte("start_date", startDate)
       .lte("start_date", endDate)
       .order("start_date", { ascending: false }),
+    // For the FSA-578-style acreage report: every planting in the period, with the field it's on
+    // (for acres/boundary) and the row (if planted to a sub-section rather than the whole field).
+    supabase
+      .from("plantings")
+      .select("*, fields(name, size_acres), field_rows(label)")
+      .eq("org_id", orgId)
+      .gte("planted_date", startDate)
+      .lte("planted_date", endDate)
+      .order("planted_date", { ascending: false }),
   ]);
   const statusMap = new Map((statuses ?? []).map((s) => [s.animal_id, s]));
   return {
@@ -243,6 +252,7 @@ export async function getComplianceReportData(orgId: string, startDate: string, 
     })),
     healthLogs: healthLogs ?? [],
     grazingEvents: grazingEvents ?? [],
+    plantings: plantings ?? [],
   };
 }
 

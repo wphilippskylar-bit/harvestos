@@ -10,6 +10,18 @@ type Crop = { id: string; name: string; crop_family: string | null };
 type Row = { id: string; label: string };
 type Conflict = { planting_id: string; crop_name_snapshot: string; planted_date: string };
 
+const INTENDED_USE_OPTIONS = [
+  { key: "", label: "— Not set —" },
+  { key: "grain", label: "Grain" },
+  { key: "feed", label: "Feed" },
+  { key: "seed", label: "Seed" },
+  { key: "cover_crop", label: "Cover crop" },
+  { key: "forage", label: "Forage" },
+  { key: "fresh_market", label: "Fresh market" },
+  { key: "processing", label: "Processing" },
+  { key: "other", label: "Other" },
+];
+
 export default function PlantingForm({
   orgId, fieldId, rows, crops, onDone,
 }: { orgId: string; fieldId: string; rows: Row[]; crops: Crop[]; onDone: () => void }) {
@@ -18,6 +30,10 @@ export default function PlantingForm({
   const [cropId, setCropId] = useState(crops[0]?.id ?? "");
   const [rowId, setRowId] = useState("");
   const [plantedDate, setPlantedDate] = useState(new Date().toISOString().slice(0, 10));
+  // Not required for day-to-day tracking — these only matter when you're pulling together an
+  // FSA-578-style acreage report (see Compliance), so they're optional and tucked at the bottom.
+  const [intendedUse, setIntendedUse] = useState("");
+  const [producerSharePct, setProducerSharePct] = useState("");
   const [conflicts, setConflicts] = useState<Conflict[] | null>(null);
   const [checking, setChecking] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -53,6 +69,8 @@ export default function PlantingForm({
         crop_name_snapshot: selectedCrop.name,
         crop_family_snapshot: selectedCrop.crop_family,
         planted_date: plantedDate,
+        intended_use: intendedUse || null,
+        producer_share_pct: producerSharePct ? Number(producerSharePct) : null,
         rotation_warning_acknowledged: acknowledged,
       });
       if (insertError) throw insertError;
@@ -119,6 +137,25 @@ export default function PlantingForm({
         <div>
           <label className="label !text-[11px]">Planted date</label>
           <input className="input !py-1.5 text-sm" type="date" value={plantedDate} onChange={(e) => setPlantedDate(e.target.value)} />
+        </div>
+        <div>
+          <label className="label !text-[11px]">Intended use (optional)</label>
+          <select className="input !py-1.5 text-sm" value={intendedUse} onChange={(e) => setIntendedUse(e.target.value)}>
+            {INTENDED_USE_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="label !text-[11px]">Producer share % (optional)</label>
+          <input
+            className="input !py-1.5 text-sm"
+            type="number"
+            min="0"
+            max="100"
+            step="1"
+            value={producerSharePct}
+            onChange={(e) => setProducerSharePct(e.target.value)}
+            placeholder="e.g. 100 if solely yours"
+          />
         </div>
       </div>
       {error && <p className="text-xs text-red-600">{error}</p>}

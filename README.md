@@ -728,3 +728,71 @@ existing orgs and data are unaffected.
   seeing the full USDA report.
 
 No new migration for either change.
+
+## FSA-578-style acreage reporting, step 1: two new planting fields (migration 0027)
+
+First step toward an FSA-578-style acreage export. There's no live USDA API an individual producer
+can submit acreage reports through electronically — filing happens in person at an FSA office,
+through a crop insurance agent, or as a shapefile/GeoJSON import into a producer's own farmers.gov
+account — so the real, buildable version of "FSA-578 support" is an export formatted to match what
+the form and the FSA office actually ask for. Fields/Plantings already cover most of what FSA-578
+needs (crop, acres via the field map from migration 0018, planting date). This migration adds the
+two pieces that were missing:
+
+- `plantings.producer_share_pct` — the producer's % interest in this planting (0–100), relevant on
+  shared or leased ground. Nullable — most single-owner plantings can leave it blank.
+- `plantings.intended_use` — grain / feed / seed / cover crop / forage / fresh market / processing
+  / other. FSA-578 asks for this explicitly and it isn't reliably inferable from anything already
+  stored.
+
+Both are additive and nullable — existing plantings are unaffected. Run `0027_fsa578_fields.sql`
+after `0026_weight_unit_g_kg.sql`. The form fields and the actual export UI are the next step, not
+part of this migration.
+
+## FSA-578-style acreage report — the export (built on migration 0027's new fields)
+
+The other half of the FSA-578 work: a new "Acreage report (FSA-578 style)" section on the
+Compliance page, plus the two fields it needed on the planting form.
+
+- **`PlantingForm.tsx`** (field-crop plantings) — two new optional fields at the bottom: intended
+  use (grain/feed/seed/cover crop/forage/fresh market/processing/other) and producer share %
+  (0–100). Both optional — most single-owner plantings can leave them blank.
+- **Compliance page** — new "Acreage report" card, same date-range/print/export pattern as the
+  existing treatment and grazing sections: every planting in the selected period, with crop,
+  field, acres (from the field's boundary/size), planted date, intended use, and producer share.
+  "Export acreage CSV (FSA-578 style)" button alongside the existing CSV exports; the whole page
+  (including this new section) already supports "Print / Save as PDF."
+- As noted in the migration, this isn't a live USDA filing — there's no electronic submission API
+  for individual producers. It's a report formatted to match what FSA-578 and an FSA office
+  actually ask for, meant to be brought to an appointment or given to a crop insurance agent.
+
+No new migration for this part — it's the form/UI half of what 0027 set up.
+
+## Import + Export merged into one page, moved off the nav onto the Dashboard
+
+Import and Export were two separate nav tabs with near-mirror-image UIs (both driven by
+`lib/import-configs.ts`). Combined into one page at `/import` with an Export/Import tab switcher —
+Export first, since "download what I already have" (including the acreage report) is the more
+common day-one action than "bring in an old spreadsheet."
+
+- **No more nav items** for Import or Export — removed from `components/Nav.tsx`. Instead, an
+  "Import / Export data" button now sits next to the page title on the **Dashboard**, since this is
+  a periodic/setup task rather than something people click into daily the way Batches or Sales are.
+- **The acreage report (FSA-578 style) is now the first option in the Export dropdown**, marked
+  "★ … — Premium" — this is the feature that gets tied to the Grower tier and up once billing
+  exists (see the pricing discussion in this session). It runs its own plantings+fields query
+  rather than a straight table dump, so it's not one of the regular `IMPORT_CONFIGS` entries; it's
+  also still available with date-range filtering on the Compliance page for anyone who wants a
+  specific period rather than the full history this version exports.
+- `app/(app)/export/page.tsx` was removed (route deleted); `ExportClient.tsx` stayed in place and
+  is now rendered from the new combined `/import` page's Export tab instead.
+
+No new migration.
+
+## Mobile nav drawer: tap-outside-to-close fixed
+
+The mobile nav drawer's backdrop had its Tailwind classes backwards — `hidden md:block` meant the
+tap-to-close overlay was hidden on mobile (where the drawer is a fullscreen overlay and needs it)
+and only showed on desktop (where the sidebar is permanently docked and never needs it, since it's
+not an overlay there). Fixed to `block md:hidden`. On a phone, tapping anywhere outside the open
+nav drawer now closes it, same as any standard mobile nav pattern.

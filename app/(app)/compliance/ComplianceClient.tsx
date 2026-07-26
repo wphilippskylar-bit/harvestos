@@ -34,6 +34,21 @@ type GrazingEvent = {
   field_rows: { label: string } | null;
 };
 
+const INTENDED_USE_LABELS: Record<string, string> = {
+  grain: "Grain", feed: "Feed", seed: "Seed", cover_crop: "Cover crop",
+  forage: "Forage", fresh_market: "Fresh market", processing: "Processing", other: "Other",
+};
+
+type Planting = {
+  id: string;
+  crop_name_snapshot: string | null;
+  planted_date: string;
+  intended_use: string | null;
+  producer_share_pct: number | null;
+  fields: { name: string; size_acres: number | null } | null;
+  field_rows: { label: string } | null;
+};
+
 function escapeCsv(v: string) {
   return `"${String(v).replace(/"/g, '""')}"`;
 }
@@ -52,12 +67,13 @@ function downloadCsv(filename: string, header: string[], rows: string[][]) {
 }
 
 export default function ComplianceClient({
-  orgName, animals, healthLogs, grazingEvents, startDate, endDate,
+  orgName, animals, healthLogs, grazingEvents, plantings, startDate, endDate,
 }: {
   orgName: string;
   animals: Animal[];
   healthLogs: HealthLog[];
   grazingEvents: GrazingEvent[];
+  plantings: Planting[];
   startDate: string;
   endDate: string;
 }) {
@@ -98,6 +114,22 @@ export default function ComplianceClient({
     );
   }
 
+  function exportAcreageCsv() {
+    downloadCsv(
+      `acreage-report-${startDate}-to-${endDate}.csv`,
+      ["Crop", "Field", "Row/section", "Acres (field total)", "Planted date", "Intended use", "Producer share %"],
+      plantings.map((p) => [
+        p.crop_name_snapshot ?? "",
+        p.fields?.name ?? "",
+        p.field_rows?.label ?? "",
+        p.fields?.size_acres != null ? String(p.fields.size_acres) : "",
+        p.planted_date,
+        p.intended_use ? (INTENDED_USE_LABELS[p.intended_use] ?? p.intended_use) : "",
+        p.producer_share_pct != null ? String(p.producer_share_pct) : "",
+      ])
+    );
+  }
+
   const restrictedAnimals = animals.filter((a) => a.restricted);
 
   return (
@@ -120,6 +152,9 @@ export default function ComplianceClient({
           </button>
           <button className="btn-secondary" onClick={exportGrazingCsv} disabled={grazingEvents.length === 0}>
             Export grazing CSV
+          </button>
+          <button className="btn-secondary" onClick={exportAcreageCsv} disabled={plantings.length === 0}>
+            Export acreage CSV (FSA-578 style)
           </button>
           <button className="btn-primary" onClick={() => window.print()}>Print / Save as PDF</button>
         </div>
@@ -243,6 +278,51 @@ export default function ComplianceClient({
                   <td className="py-2.5 px-4 text-stone-500">{g.start_date}</td>
                   <td className="py-2.5 px-4 text-stone-500">{g.end_date ?? "ongoing"}</td>
                   <td className="py-2.5 px-4 text-stone-400">{[g.animal_notes, g.notes].filter(Boolean).join(" — ")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Acreage report — FSA-578-style */}
+      <div className="card overflow-hidden">
+        <div className="px-5 py-4 border-b border-stone-100">
+          <h3 className="font-semibold text-stone-800">Acreage report (FSA-578 style)</h3>
+          <p className="text-xs text-stone-400 mt-0.5">
+            Every planting in the report period, with the fields FSA-578 asks for — crop, acres,
+            planting date, intended use, and producer share. Bring this to your FSA office
+            appointment or crop insurance agent; there's no direct electronic filing API for
+            individual producers, so this isn't a live submission.
+          </p>
+        </div>
+        {plantings.length === 0 ? (
+          <div className="px-5 py-4"><EmptyState title="No plantings logged in this period" /></div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="bg-stone-50 text-xs text-stone-500 uppercase tracking-wide">
+              <tr>
+                <th className="text-left py-3 px-4">Crop</th>
+                <th className="text-left py-3 px-4">Field</th>
+                <th className="text-left py-3 px-4">Acres</th>
+                <th className="text-left py-3 px-4">Planted</th>
+                <th className="text-left py-3 px-4">Intended use</th>
+                <th className="text-left py-3 px-4">Producer share</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-stone-100">
+              {plantings.map((p) => (
+                <tr key={p.id}>
+                  <td className="py-2.5 px-4 font-medium text-stone-700">{p.crop_name_snapshot ?? "—"}</td>
+                  <td className="py-2.5 px-4 text-stone-600">
+                    {p.fields?.name ?? "Unknown field"}{p.field_rows?.label ? ` · ${p.field_rows.label}` : ""}
+                  </td>
+                  <td className="py-2.5 px-4 text-stone-500">{p.fields?.size_acres ?? "—"}</td>
+                  <td className="py-2.5 px-4 text-stone-500">{p.planted_date}</td>
+                  <td className="py-2.5 px-4 text-stone-500">
+                    {p.intended_use ? (INTENDED_USE_LABELS[p.intended_use] ?? p.intended_use) : "—"}
+                  </td>
+                  <td className="py-2.5 px-4 text-stone-500">{p.producer_share_pct != null ? `${p.producer_share_pct}%` : "—"}</td>
                 </tr>
               ))}
             </tbody>

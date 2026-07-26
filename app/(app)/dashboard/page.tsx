@@ -72,10 +72,15 @@ export default async function DashboardPage() {
 
   return (
     <div>
-      <PageHeader
-        title={`Welcome back${ctx.orgName ? `, ${ctx.orgName}` : ""}`}
-        subtitle="Your farm at a glance — updates live as you log batches, purchases, and sales. Click any tile or chart to jump to that page."
-      />
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <PageHeader
+          title={`Welcome back${ctx.orgName ? `, ${ctx.orgName}` : ""}`}
+          subtitle="Your farm at a glance — updates live as you log batches, purchases, and sales. Click any tile or chart to jump to that page."
+        />
+        <Link href="/import" className="btn-secondary whitespace-nowrap !mt-1">
+          Import / Export data
+        </Link>
+      </div>
 
       {lowStockCrops.length > 0 && (
         <div className="card p-4 mb-6 border-l-4 border-red-400 bg-red-50/50 flex items-start justify-between gap-4 flex-wrap">

@@ -33,9 +33,9 @@ export const BASE_NAV = [
   { href: "/environmental", label: "Environment Log", requires: "microgreens" },
   { href: "/sops", label: "SOPs" },
   { href: "/goals", label: "Goals" },
-  { href: "/import", label: "Import Data" },
-  { href: "/export", label: "Export Data" },
   { href: "/settings", label: "Settings" },
+  // Import/Export deliberately has no nav item — it's reached from a Dashboard link instead,
+  // since it's a periodic/setup task rather than a daily-use page (see app/(app)/dashboard).
 ];
 
 export default function Nav({
@@ -86,7 +86,11 @@ export default function Nav({
       <div
         className={`${open ? "block" : "hidden"} md:block fixed md:sticky top-0 md:top-auto inset-0 md:inset-auto z-40 md:z-auto`}
       >
-        <div className="hidden md:block absolute inset-0 bg-black/30" onClick={() => setOpen(false)} />
+        {/* Tap-outside-to-close backdrop — mobile/drawer only. Desktop's sidebar is permanently
+            docked (md:sticky, not an overlay), so it never needs a backdrop; on mobile this was
+            previously "hidden md:block" (backwards), which meant tapping outside the open drawer
+            on a phone did nothing — the one place this behavior actually matters. */}
+        <div className="block md:hidden absolute inset-0 bg-black/30" onClick={() => setOpen(false)} />
         <aside className="relative md:sticky md:top-0 h-screen w-72 md:w-64 bg-white border-r border-stone-200 flex flex-col">
           <div className="p-5 border-b border-stone-100">
             <div className="font-extrabold text-brand-700 text-lg tracking-tight">Harvest OS</div>

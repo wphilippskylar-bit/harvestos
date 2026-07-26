@@ -13,19 +13,20 @@ export default async function CompliancePage({
   const startDate = searchParams?.start || yearAgo;
   const endDate = searchParams?.end || today;
 
-  const { animals, healthLogs, grazingEvents } = await getComplianceReportData(ctx.orgId, startDate, endDate);
+  const { animals, healthLogs, grazingEvents, plantings } = await getComplianceReportData(ctx.orgId, startDate, endDate);
 
   return (
     <div>
       <PageHeader
         title="Compliance & audit trail"
-        subtitle="A dated, exportable record of herd status, treatments, withdrawal periods, and pasture movement — for buyers, inspectors, or grant reporting."
+        subtitle="A dated, exportable record of herd status, treatments, withdrawal periods, pasture movement, and acreage — for buyers, inspectors, or grant/FSA reporting."
       />
       <ComplianceClient
         orgName={ctx.orgName}
         animals={animals}
         healthLogs={healthLogs}
         grazingEvents={grazingEvents}
+        plantings={plantings}
         startDate={startDate}
         endDate={endDate}
       />
