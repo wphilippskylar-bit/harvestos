@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import { EmptyState } from "@/components/ui";
 import CeaAreaForm from "@/components/forms/CeaAreaForm";
+import CeaFacilityForm from "@/components/forms/CeaFacilityForm";
 import CeaPlantingForm from "@/components/forms/CeaPlantingForm";
 import CeaEnvLogForm from "@/components/forms/CeaEnvLogForm";
 import { areaUnitLabel, defaultAreaUnit, sqFtToPreferred } from "@/lib/units";
@@ -16,6 +17,7 @@ type Area = {
   id: string;
   name: string;
   area_type: string;
+  facility_id?: string | null;
   sq_ft: number | null;
   notes: string | null;
   last_sterilized_date?: string | null;
@@ -23,6 +25,7 @@ type Area = {
   cea_area_rows: Row[];
   cea_plantings: Planting[];
 };
+type Facility = { id: string; name: string; facility_type: string; notes: string | null };
 type Crop = { id: string; name: string };
 type EnvLog = {
   id: string;
@@ -39,6 +42,13 @@ const AREA_TYPE_LABELS: Record<string, string> = {
   high_tunnel: "High tunnel (climate-controlled)",
   indoor_vertical: "Indoor vertical farm",
   hydroponic: "Hydroponic",
+  other: "Other",
+};
+
+const FACILITY_TYPE_LABELS: Record<string, string> = {
+  building: "Building",
+  greenhouse_complex: "Greenhouse complex",
+  warehouse: "Warehouse",
   other: "Other",
 };
 
@@ -59,12 +69,13 @@ function daysSince(dateStr: string): number {
 }
 
 export default function CeaClient({
-  orgId, role, areas, crops = [], weightUnit, areaUnit,
+  orgId, role, areas, crops = [], facilities = [], weightUnit, areaUnit,
 }: {
   orgId: string;
   role: string;
   areas: Area[];
   crops?: Crop[];
+  facilities?: Facility[];
   weightUnit?: string;
   areaUnit?: string;
 }) {
@@ -72,6 +83,7 @@ export default function CeaClient({
   const router = useRouter();
   const isEditor = role === "owner" || role === "admin" || role === "member";
   const [showAreaForm, setShowAreaForm] = useState(false);
+  const [showFacilityForm, setShowFacilityForm] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showPlantingForm, setShowPlantingForm] = useState<string | null>(null);
   const [showLogForm, setShowLogForm] = useState<string | null>(null);
@@ -118,15 +130,23 @@ export default function CeaClient({
     );
   }
 
-  return (
-    <div className="space-y-4">
-      {isEditor && (
-        showAreaForm
-          ? <CeaAreaForm orgId={orgId} areaUnit={areaUnit} onDone={() => setShowAreaForm(false)} />
-          : <div className="flex justify-end"><button className="btn-primary" onClick={() => setShowAreaForm(true)}>+ Add area</button></div>
-      )}
+  // Group rooms under their facility, if any — a room with no facility_id just falls into the
+  // "standalone" bucket at the end, so single-room growers see the exact same flat list as before.
+  const facilityGroups = facilities.map((f) => ({
+    facility: f,
+    rooms: areas.filter((a) => a.facility_id === f.id),
+  }));
+  const standaloneRooms = areas.filter((a) => !a.facility_id || !facilities.some((f) => f.id === a.facility_id));
 
-      {areas.map((a) => {
+  function facilityStats(rooms: Area[]) {
+    const activePlantings = rooms.reduce(
+      (sum, r) => sum + (r.cea_plantings?.filter((p) => p.status !== "harvested" && p.status !== "failed").length ?? 0),
+      0
+    );
+    return { roomCount: rooms.length, activePlantings };
+  }
+
+  function renderAreaCard(a: Area) {
         const expanded = expandedId === a.id;
         const logs = envLogs[a.id];
         const activePlantings = a.cea_plantings?.filter((p) => p.status !== "harvested" && p.status !== "failed") ?? [];
@@ -260,7 +280,51 @@ export default function CeaClient({
             )}
           </div>
         );
+  }
+
+  return (
+    <div className="space-y-6">
+      {isEditor && (
+        <div className="flex justify-end gap-2">
+          {facilities.length === 0 && !showFacilityForm && (
+            <button className="btn-secondary" onClick={() => setShowFacilityForm(true)}>+ Add facility</button>
+          )}
+          {!showAreaForm && <button className="btn-primary" onClick={() => setShowAreaForm(true)}>+ Add room</button>}
+        </div>
+      )}
+      {isEditor && showFacilityForm && (
+        <CeaFacilityForm orgId={orgId} onDone={() => setShowFacilityForm(false)} />
+      )}
+      {isEditor && showAreaForm && (
+        <CeaAreaForm orgId={orgId} areaUnit={areaUnit} facilities={facilities} onDone={() => setShowAreaForm(false)} />
+      )}
+
+      {facilityGroups.filter((g) => g.rooms.length > 0 || facilities.length > 0).map(({ facility, rooms }) => {
+        const stats = facilityStats(rooms);
+        return (
+          <div key={facility.id} className="space-y-3">
+            <div className="flex items-center gap-2 px-1">
+              <h2 className="text-sm font-semibold text-stone-800">{facility.name}</h2>
+              <span className="badge bg-stone-100 text-stone-600">{FACILITY_TYPE_LABELS[facility.facility_type] ?? facility.facility_type}</span>
+              <span className="text-xs text-stone-400">
+                {stats.roomCount} room{stats.roomCount === 1 ? "" : "s"} · {stats.activePlantings} active planting{stats.activePlantings === 1 ? "" : "s"}
+              </span>
+            </div>
+            {rooms.length === 0 ? (
+              <p className="text-xs text-stone-400 px-1">No rooms added to this facility yet — add a room and pick it from the facility dropdown.</p>
+            ) : (
+              <div className="space-y-3">{rooms.map(renderAreaCard)}</div>
+            )}
+          </div>
+        );
       })}
+
+      {standaloneRooms.length > 0 && (
+        <div className="space-y-3">
+          {facilities.length > 0 && <h2 className="text-sm font-semibold text-stone-800 px-1">Standalone rooms</h2>}
+          <div className="space-y-3">{standaloneRooms.map(renderAreaCard)}</div>
+        </div>
+      )}
     </div>
   );
 }

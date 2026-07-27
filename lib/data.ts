@@ -157,6 +157,20 @@ export async function getCeaAreas(orgId: string) {
   return data ?? [];
 }
 
+// Facility = optional grouping layer above cea_areas ("rooms"), so a grower running more than one
+// room can see the whole building at a glance. Rooms without a facility_id just don't show up
+// under any facility — the per-room view keeps working exactly as it did before this existed.
+export async function getCeaFacilities(orgId: string) {
+  if (DEMO_MODE) return [];
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("cea_facilities")
+    .select("*")
+    .eq("org_id", orgId)
+    .order("name");
+  return data ?? [];
+}
+
 export async function getCeaEnvironmentLogs(areaId: string) {
   if (DEMO_MODE) return [];
   const supabase = createClient();
@@ -276,6 +290,17 @@ export async function getPlatformOrgRoster() {
   if (DEMO_MODE) return [];
   const supabase = createClient();
   const { data, error } = await supabase.rpc("platform_org_roster");
+  if (error) return [];
+  return data ?? [];
+}
+
+export async function getFeedback() {
+  if (DEMO_MODE) return [];
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("feedback")
+    .select("*, organizations(name)")
+    .order("created_at", { ascending: false });
   if (error) return [];
   return data ?? [];
 }

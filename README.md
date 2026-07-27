@@ -796,3 +796,22 @@ tap-to-close overlay was hidden on mobile (where the drawer is a fullscreen over
 and only showed on desktop (where the sidebar is permanently docked and never needs it, since it's
 not an overlay there). Fixed to `block md:hidden`. On a phone, tapping anywhere outside the open
 nav drawer now closes it, same as any standard mobile nav pattern.
+
+## In-app feedback system (migration 0028)
+
+A "Feedback" button now floats in the bottom-right corner of every page in the app (mounted
+globally in `app/(app)/layout.tsx`) — beta testers can flag a bug or idea without leaving the
+page or hunting for an email address.
+
+- `feedback` table — category (bug/idea/general), message, the page path it was sent from,
+  which org/user sent it, status (new/reviewed/resolved, for your own triage later). RLS: any
+  signed-in user can insert (including into their own submission, but they can't read it back —
+  this isn't a support-ticket viewer for the submitter, just a one-way report), only platform
+  admins can read or update, reusing the existing `is_platform_admin()` function from migration
+  0014.
+- `components/FeedbackWidget.tsx` — the floating button + form. Auto-captures the current page
+  path and the signed-in user's email so you don't have to ask "which page were you on."
+- **Admin page** (`/admin`, platform-admin only) — new "Feedback" section below the existing
+  farm roster, newest first, showing category, farm, submitter email, page, and the message.
+
+Run `0028_feedback.sql` after `0027_fsa578_fields.sql`.

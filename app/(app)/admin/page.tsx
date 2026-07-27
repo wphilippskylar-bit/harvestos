@@ -1,5 +1,12 @@
-import { isPlatformAdmin, getPlatformAggregateStats, getPlatformOrgRoster } from "@/lib/data";
+import { isPlatformAdmin, getPlatformAggregateStats, getPlatformOrgRoster, getFeedback } from "@/lib/data";
 import { PageHeader } from "@/components/ui";
+
+const CATEGORY_LABELS: Record<string, string> = { bug: "Bug", idea: "Idea", general: "General" };
+const CATEGORY_STYLES: Record<string, string> = {
+  bug: "bg-red-100 text-red-700",
+  idea: "bg-blue-100 text-blue-700",
+  general: "bg-stone-100 text-stone-600",
+};
 
 export default async function AdminPage() {
   const admin = await isPlatformAdmin();
@@ -11,7 +18,7 @@ export default async function AdminPage() {
     );
   }
 
-  const [stats, roster] = await Promise.all([getPlatformAggregateStats(), getPlatformOrgRoster()]);
+  const [stats, roster, feedback] = await Promise.all([getPlatformAggregateStats(), getPlatformOrgRoster(), getFeedback()]);
 
   const tiles = stats
     ? [
@@ -58,6 +65,38 @@ export default async function AdminPage() {
                 <span className="text-xs text-stone-400">
                   {(o.operation_types ?? []).join(", ")} · joined {new Date(o.created_at).toLocaleDateString()}
                 </span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="card overflow-hidden mt-8">
+        <div className="px-5 py-4 border-b border-stone-100">
+          <h3 className="font-semibold text-stone-800">Feedback</h3>
+          <p className="text-xs text-stone-400 mt-0.5">
+            Everything submitted through the "Feedback" button in the app, newest first. Only
+            visible to platform admins.
+          </p>
+        </div>
+        <div className="divide-y divide-stone-100">
+          {feedback.length === 0 ? (
+            <p className="px-5 py-4 text-xs text-stone-400">No feedback submitted yet.</p>
+          ) : (
+            feedback.map((f: any) => (
+              <div key={f.id} className="px-5 py-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`badge ${CATEGORY_STYLES[f.category] ?? "bg-stone-100 text-stone-600"}`}>
+                    {CATEGORY_LABELS[f.category] ?? f.category}
+                  </span>
+                  <span className="text-xs text-stone-500">{f.organizations?.name ?? "Unknown farm"}</span>
+                  {f.user_email && <span className="text-xs text-stone-400">· {f.user_email}</span>}
+                  <span className="text-xs text-stone-400">· {f.page_path ?? "unknown page"}</span>
+                  <span className="text-xs text-stone-400 ml-auto whitespace-nowrap">
+                    {new Date(f.created_at).toLocaleDateString()} {new Date(f.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                  </span>
+                </div>
+                <p className="text-sm text-stone-700 mt-1.5">{f.message}</p>
               </div>
             ))
           )}

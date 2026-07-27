@@ -15,12 +15,20 @@ const AREA_TYPES = [
   { key: "other", label: "Other" },
 ];
 
-export default function CeaAreaForm({ orgId, areaUnit, onDone }: { orgId: string; areaUnit?: string; onDone: () => void }) {
+export default function CeaAreaForm({
+  orgId, areaUnit, facilities = [], onDone,
+}: {
+  orgId: string;
+  areaUnit?: string;
+  facilities?: { id: string; name: string }[];
+  onDone: () => void;
+}) {
   const supabase = createClient();
   const router = useRouter();
   const unit = defaultAreaUnit(areaUnit);
   const [name, setName] = useState("");
   const [areaType, setAreaType] = useState("greenhouse");
+  const [facilityId, setFacilityId] = useState("");
   const [sqFt, setSqFt] = useState("");
   const [lastSterilizedDate, setLastSterilizedDate] = useState("");
   const [sterilizationNotes, setSterilizationNotes] = useState("");
@@ -38,6 +46,7 @@ export default function CeaAreaForm({ orgId, areaUnit, onDone }: { orgId: string
         org_id: orgId,
         name,
         area_type: areaType,
+        facility_id: facilityId || null,
         sq_ft: sqFt ? preferredToSqFt(Number(sqFt), unit) : null,
         last_sterilized_date: lastSterilizedDate || null,
         sterilization_notes: sterilizationNotes || null,
@@ -70,6 +79,15 @@ export default function CeaAreaForm({ orgId, areaUnit, onDone }: { orgId: string
           <label className="label">Size ({areaUnitLabel(unit)})</label>
           <input className="input" type="number" step={unit === "acres" ? "0.01" : "1"} value={sqFt} onChange={(e) => setSqFt(e.target.value)} />
         </div>
+        {facilities.length > 0 && (
+          <div>
+            <label className="label">Facility / building (optional)</label>
+            <select className="input" value={facilityId} onChange={(e) => setFacilityId(e.target.value)}>
+              <option value="">No facility — standalone room</option>
+              {facilities.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+            </select>
+          </div>
+        )}
         <div>
           <label className="label">Last sterilized (optional)</label>
           <input className="input" type="date" value={lastSterilizedDate} onChange={(e) => setLastSterilizedDate(e.target.value)} />

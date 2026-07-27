@@ -16,24 +16,56 @@ type Animal = { id: string; ear_tag_number: string };
 
 const CATEGORY_LABELS: Record<string, string> = { nutrient: "Nutrient", feed: "Feed", commercial_seed: "Commercial seed", equipment: "Equipment" };
 
+type ExistingPurchase = {
+  id: string;
+  purchase_date: string;
+  item: string;
+  category: string;
+  amount_qty: string | null;
+  vendor: string | null;
+  cost: number | null;
+  tax: number | null;
+  shipping: number | null;
+  crop_id: string | null;
+  seed_weight_g: number | null;
+  field_id: string | null;
+  tax_deductible: boolean | null;
+  supply_id?: string | null;
+  animal_id?: string | null;
+};
+
 export default function PurchaseForm({
-  orgId, crops, fields = [], supplies = [], animals = [], onDone,
-}: { orgId: string; crops: Crop[]; fields?: Field[]; supplies?: Supply[]; animals?: Animal[]; onDone: () => void }) {
+  orgId, crops, fields = [], supplies = [], animals = [], existingPurchase, onDone,
+}: {
+  orgId: string;
+  crops: Crop[];
+  fields?: Field[];
+  supplies?: Supply[];
+  animals?: Animal[];
+  existingPurchase?: ExistingPurchase;
+  onDone: () => void;
+}) {
   const supabase = createClient();
   const router = useRouter();
-  const [mode, setMode] = useState<"general" | "seed" | "supply" | "equipment" | "livestock">("general");
-  const [item, setItem] = useState("");
-  const [category, setCategory] = useState("Seeds");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [amountQty, setAmountQty] = useState("");
-  const [vendor, setVendor] = useState("");
-  const [cost, setCost] = useState("");
-  const [tax, setTax] = useState("");
-  const [shipping, setShipping] = useState("");
-  const [cropId, setCropId] = useState(crops[0]?.id ?? "");
-  const [seedWeightG, setSeedWeightG] = useState("");
-  const [fieldId, setFieldId] = useState("");
-  const [taxDeductible, setTaxDeductible] = useState(true);
+  const isEdit = !!existingPurchase;
+  // Editing is scoped to the core purchase fields only — a seed purchase can still be edited as a
+  // seed purchase (crop/weight included), but supply/equipment/livestock purchases edit as a plain
+  // record without touching their linked farm_supplies/equipment_assets/animals row, since safely
+  // reconciling those side-effects on every field change is a lot riskier than just not touching them.
+  const initialMode: "general" | "seed" = existingPurchase?.crop_id && existingPurchase?.seed_weight_g ? "seed" : "general";
+  const [mode, setMode] = useState<"general" | "seed" | "supply" | "equipment" | "livestock">(initialMode);
+  const [item, setItem] = useState(existingPurchase?.item ?? "");
+  const [category, setCategory] = useState(existingPurchase?.category ?? "Seeds");
+  const [date, setDate] = useState(existingPurchase?.purchase_date ?? new Date().toISOString().slice(0, 10));
+  const [amountQty, setAmountQty] = useState(existingPurchase?.amount_qty ?? "");
+  const [vendor, setVendor] = useState(existingPurchase?.vendor ?? "");
+  const [cost, setCost] = useState(existingPurchase?.cost != null ? String(existingPurchase.cost) : "");
+  const [tax, setTax] = useState(existingPurchase?.tax != null ? String(existingPurchase.tax) : "");
+  const [shipping, setShipping] = useState(existingPurchase?.shipping != null ? String(existingPurchase.shipping) : "");
+  const [cropId, setCropId] = useState(existingPurchase?.crop_id ?? crops[0]?.id ?? "");
+  const [seedWeightG, setSeedWeightG] = useState(existingPurchase?.seed_weight_g != null ? String(existingPurchase.seed_weight_g) : "");
+  const [fieldId, setFieldId] = useState(existingPurchase?.field_id ?? "");
+  const [taxDeductible, setTaxDeductible] = useState(existingPurchase?.tax_deductible ?? true);
 
   // Supply purchase mode
   const [supplyId, setSupplyId] = useState(supplies[0]?.supply_id ?? (supplies.length === 0 ? NEW_SUPPLY : ""));
@@ -127,6 +159,32 @@ export default function PurchaseForm({
         }
       }
 
+      if (isEdit) {
+        // Edit path: core fields only, never touches supply_id/animal_id/supply_qty or the linked
+        // farm_supplies/equipment_assets/animals rows — see the note above the mode/initialMode setup.
+        const { error: updateError } = await supabase
+          .from("purchases")
+          .update({
+            purchase_date: date,
+            item,
+            category,
+            amount_qty: amountQty || null,
+            vendor: vendor || null,
+            cost: Number(cost) || 0,
+            tax: Number(tax) || 0,
+            shipping: Number(shipping) || 0,
+            crop_id: mode === "seed" ? cropId || null : null,
+            seed_weight_g: mode === "seed" && seedWeightG ? Number(seedWeightG) : null,
+            field_id: fieldId || null,
+            tax_deductible: taxDeductible,
+          })
+          .eq("id", existingPurchase!.id);
+        if (updateError) throw updateError;
+        onDone();
+        router.refresh();
+        return;
+      }
+
       const { data: purchase, error: purchaseError } = await supabase
         .from("purchases")
         .insert({
@@ -175,24 +233,48 @@ export default function PurchaseForm({
 
   return (
     <form onSubmit={handleSubmit} className="card p-5 mb-4 space-y-4">
-      <div className="flex flex-wrap rounded-lg bg-stone-100 p-1 text-sm font-medium gap-y-1">
-        {([
-          ["general", "General purchase"],
-          ["seed", "Seed purchase"],
-          ["supply", "Supply purchase"],
-          ["equipment", "Equipment"],
-          ["livestock", "Livestock"],
-        ] as const).map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            className={`flex-1 min-w-[7rem] rounded-md py-1.5 px-2 transition-colors ${mode === key ? "bg-white shadow-sm text-brand-700" : "text-stone-500"}`}
-            onClick={() => switchMode(key)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      {isEdit ? (
+        <p className="text-xs text-stone-400">
+          Editing a purchase{existingPurchase?.supply_id || existingPurchase?.animal_id || category === "Equipment" ? (
+            <> — this was originally a supply/equipment/livestock purchase, so its linked record (stock item, asset, or animal) won&apos;t be changed here, only this purchase&apos;s own fields.</>
+          ) : (
+            <>. If this is a seed purchase, use the Seed tab below so inventory stays correct.</>
+          )}
+        </p>
+      ) : (
+        <div className="flex flex-wrap rounded-lg bg-stone-100 p-1 text-sm font-medium gap-y-1">
+          {([
+            ["general", "General purchase"],
+            ["seed", "Seed purchase"],
+            ["supply", "Supply purchase"],
+            ["equipment", "Equipment"],
+            ["livestock", "Livestock"],
+          ] as const).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              className={`flex-1 min-w-[7rem] rounded-md py-1.5 px-2 transition-colors ${mode === key ? "bg-white shadow-sm text-brand-700" : "text-stone-500"}`}
+              onClick={() => switchMode(key)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+      {isEdit && !existingPurchase?.supply_id && !existingPurchase?.animal_id && category !== "Equipment" && (
+        <div className="flex rounded-lg bg-stone-100 p-1 text-sm font-medium max-w-xs">
+          {([["general", "General"], ["seed", "Seed"]] as const).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              className={`flex-1 rounded-md py-1.5 px-2 transition-colors ${mode === key ? "bg-white shadow-sm text-brand-700" : "text-stone-500"}`}
+              onClick={() => switchMode(key)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {mode === "seed" && (
         <p className="text-xs text-stone-400 -mt-2">
@@ -427,7 +509,7 @@ export default function PurchaseForm({
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex gap-2 justify-end">
         <button type="button" className="btn-secondary" onClick={onDone}>Cancel</button>
-        <button type="submit" className="btn-primary" disabled={saving}>{saving ? "Saving…" : "Save purchase"}</button>
+        <button type="submit" className="btn-primary" disabled={saving}>{saving ? "Saving…" : isEdit ? "Save changes" : "Save purchase"}</button>
       </div>
     </form>
   );
