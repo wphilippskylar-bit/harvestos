@@ -43,9 +43,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         role={ctx.role}
         operationTypes={ctx.operationTypes}
         navOrder={navOrder}
-        orgId={ctx.orgId}
-        userId={ctx.userId}
-        userEmail={ctx.userEmail}
       />
       <main className="flex-1 min-w-0">
         <div className="max-w-6xl mx-auto px-4 md:px-8 py-6 md:py-10">{children}</div>

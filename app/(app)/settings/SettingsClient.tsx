@@ -8,6 +8,7 @@ import type { OrgContext } from "@/lib/data";
 import { pushSupported, getExistingPushSubscription, enablePushNotifications, disablePushNotifications } from "@/lib/push";
 import NavOrderSettings from "@/components/NavOrderSettings";
 import DashboardCustomizeSettings from "@/components/DashboardCustomizeSettings";
+import FeedbackWidget from "@/components/FeedbackWidget";
 import { WEIGHT_UNIT_OPTIONS } from "@/lib/units";
 
 const PLAN_TIERS: Record<string, { label: string; price: string; seats: string }> = {
@@ -477,6 +478,15 @@ export default function SettingsClient({
           )}
         </div>
       )}
+
+      {/* Feedback */}
+      <div className="card p-5">
+        <h2 className="font-semibold text-stone-800 mb-1">Send feedback</h2>
+        <p className="text-xs text-stone-500 mb-4">
+          Something broken, or an idea for what would make this more useful? Goes straight to the team building it.
+        </p>
+        <FeedbackWidget orgId={ctx.orgId} userId={ctx.userId} userEmail={ctx.userEmail} />
+      </div>
     </div>
   );
 }
