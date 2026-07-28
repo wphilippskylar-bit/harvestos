@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import { defaultWeightUnit, weightToGrams, WEIGHT_UNIT_OPTIONS, type WeightUnit } from "@/lib/units";
+import { enqueueWrite, isNetworkError } from "@/lib/offlineQueue";
 
 type Batch = { id: string; batch_id: string; dry_seed_weight_g: number | null };
 
@@ -25,6 +26,8 @@ export default function HarvestForm({
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [queued, setQueued] = useState(false);
+  const [skippedPhoto, setSkippedPhoto] = useState(false);
 
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null;
@@ -42,27 +45,65 @@ export default function HarvestForm({
       const wasteG = wasteOz ? weightToGrams(Number(wasteOz), unit) : null;
       const yieldRatio = freshG && batch.dry_seed_weight_g ? freshG / batch.dry_seed_weight_g : null;
 
+      const offlineNow = typeof navigator !== "undefined" && navigator.onLine === false;
+
+      // A photo upload is a binary file to Storage, not a row write — this queue only knows how
+      // to replay simple table inserts/updates, so a photo taken offline can't be queued the same
+      // way. Skip it outright when offline rather than trying and failing partway through; the
+      // rest of the harvest data still saves normally via the queue below.
       let photoUrl: string | undefined;
-      if (photo) {
-        const ext = photo.name.split(".").pop() || "jpg";
-        const path = `${orgId}/${batch.batch_id}-${Date.now()}.${ext}`;
-        const { error: uploadError } = await supabase.storage.from("harvest-photos").upload(path, photo);
-        if (uploadError) throw uploadError;
-        photoUrl = path;
+      if (photo && !offlineNow) {
+        try {
+          const ext = photo.name.split(".").pop() || "jpg";
+          const path = `${orgId}/${batch.batch_id}-${Date.now()}.${ext}`;
+          const { error: uploadError } = await supabase.storage.from("harvest-photos").upload(path, photo);
+          if (uploadError) throw uploadError;
+          photoUrl = path;
+        } catch (uploadErr) {
+          if (!isNetworkError(uploadErr)) throw uploadErr;
+          setSkippedPhoto(true);
+        }
+      } else if (photo && offlineNow) {
+        setSkippedPhoto(true);
       }
 
-      const { error } = await supabase.from("batches").update({
+      const updatePayload = {
         status: "harvested",
         harvest_date: harvestDate,
         fresh_harvest_weight_g: freshG,
         waste_mass_g: wasteG,
         yield_ratio: yieldRatio,
         ...(photoUrl ? { photo_url: photoUrl } : {}),
-      }).eq("id", batch.id);
+      };
+
+      const { error } = await supabase.from("batches").update(updatePayload).eq("id", batch.id);
       if (error) throw error;
       onDone();
       router.refresh();
     } catch (err) {
+      if (isNetworkError(err)) {
+        const freshG = freshOz ? weightToGrams(Number(freshOz), unit) : null;
+        const wasteG = wasteOz ? weightToGrams(Number(wasteOz), unit) : null;
+        const yieldRatio = freshG && batch.dry_seed_weight_g ? freshG / batch.dry_seed_weight_g : null;
+        enqueueWrite({
+          table: "batches",
+          op: "update",
+          matchColumn: "id",
+          matchValue: batch.id,
+          payload: {
+            status: "harvested",
+            harvest_date: harvestDate,
+            fresh_harvest_weight_g: freshG,
+            waste_mass_g: wasteG,
+            yield_ratio: yieldRatio,
+          },
+          label: `Harvest — ${batch.batch_id}`,
+        });
+        if (photo) setSkippedPhoto(true);
+        setQueued(true);
+        setTimeout(onDone, 1200);
+        return;
+      }
       const message =
         err instanceof Error
           ? err.message
@@ -73,6 +114,17 @@ export default function HarvestForm({
     } finally {
       setSaving(false);
     }
+  }
+
+  if (queued) {
+    return (
+      <div className="mt-2 p-3 rounded-lg border border-emerald-200 bg-emerald-50/60 space-y-1">
+        <p className="text-sm text-emerald-700 font-medium">Saved locally — will upload when you're back online.</p>
+        {skippedPhoto && (
+          <p className="text-xs text-stone-500">The photo wasn't attached — photos need a live connection to upload, and can't be queued. Add it later by editing this harvest once you're back online.</p>
+        )}
+      </div>
+    );
   }
 
   return (

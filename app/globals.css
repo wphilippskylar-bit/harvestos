@@ -28,3 +28,98 @@
     @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold;
   }
 }
+
+/* ============================================================
+   Dark theme — toggled by adding/removing `dark` on <html> (see ThemeToggle.tsx /
+   ThemeInit.tsx). Rather than adding a `dark:` variant to every one of the hundreds of
+   `text-stone-*` / `bg-*` / `border-stone-*` utility classes scattered across every page
+   (a huge, error-prone edit), this retargets the actual compiled Tailwind class names
+   globally under a `.dark` ancestor — same visual result, one file to maintain. Any new
+   page written with the same stone/white/brand palette picks up dark mode automatically
+   with no extra work; a page using a color shade not listed here just won't invert (falls
+   back to its light-mode look), which is a visible gap, not a crash — see the "known gaps"
+   note in the project doc when more shades show up in use.
+   ============================================================ */
+/* Written as literal color values rather than @apply — swapping e.g. text-stone-500 for
+   text-stone-400 while also swapping text-stone-400 for text-stone-500 is a circular
+   @apply dependency Tailwind's build rejects outright, and several of the pairs below have
+   exactly that shape. Literal values sidestep it entirely and are just as easy to tune. */
+.dark body {
+  background-color: #0c0a09; /* stone-950 */
+  color: #f5f5f4; /* stone-100 */
+}
+
+.dark .card {
+  background-color: #1c1917; /* stone-900 */
+  border-color: #292524; /* stone-800 */
+}
+.dark .btn-secondary {
+  background-color: #1c1917;
+  border-color: #44403c; /* stone-700 */
+  color: #e7e5e4; /* stone-200 */
+}
+.dark .btn-secondary:hover {
+  background-color: #292524; /* stone-800 */
+}
+.dark .input {
+  background-color: #1c1917;
+  border-color: #44403c;
+  color: #f5f5f4;
+}
+.dark .input::placeholder {
+  color: #78716c; /* stone-500 */
+}
+.dark .label {
+  color: #a8a29e; /* stone-400 */
+}
+
+/* Backgrounds */
+.dark .bg-white { background-color: #1c1917; }
+.dark .bg-stone-50 { background-color: #0c0a09; }
+.dark .bg-stone-100 { background-color: #292524; }
+.dark .bg-stone-200 { background-color: #44403c; }
+
+/* Text */
+.dark .text-stone-900 { color: #fafaf9; } /* stone-50 */
+.dark .text-stone-800 { color: #f5f5f4; } /* stone-100 */
+.dark .text-stone-700 { color: #e7e5e4; } /* stone-200 */
+.dark .text-stone-600 { color: #d6d3d1; } /* stone-300 */
+.dark .text-stone-500 { color: #a8a29e; } /* stone-400 */
+.dark .text-stone-400 { color: #78716c; } /* stone-500 */
+.dark .text-stone-300 { color: #57534e; } /* stone-600 */
+
+/* Borders / dividers */
+.dark .border-stone-100 { border-color: #292524; }
+.dark .border-stone-200 { border-color: #292524; }
+.dark .border-stone-300 { border-color: #44403c; }
+.dark .divide-stone-100 > :not([hidden]) ~ :not([hidden]) { border-color: #292524; }
+
+/* Status colors — keep hue, shift toward dark-friendly backgrounds/text so badges and
+   banners (low-stock, warnings, success states) stay legible instead of glowing pastel
+   panels on a near-black page. */
+.dark .bg-red-50 { background-color: #450a0a; } /* red-950 */
+.dark .bg-red-100 { background-color: #450a0a; }
+.dark .text-red-600 { color: #f87171; } /* red-400 */
+.dark .text-red-700 { color: #f87171; }
+.dark .text-red-800 { color: #fca5a5; } /* red-300 */
+.dark .border-red-300 { border-color: #991b1b; } /* red-800 */
+.dark .border-red-400 { border-color: #991b1b; }
+
+.dark .bg-emerald-50 { background-color: #022c22; } /* emerald-950 */
+.dark .bg-emerald-100 { background-color: #022c22; }
+.dark .text-emerald-700 { color: #34d399; } /* emerald-400 */
+.dark .text-emerald-800 { color: #6ee7b7; } /* emerald-300 */
+.dark .border-emerald-200 { border-color: #065f46; } /* emerald-800 */
+.dark .border-emerald-300 { border-color: #065f46; }
+
+.dark .bg-amber-50 { background-color: #451a03; } /* amber-950 */
+.dark .bg-amber-100 { background-color: #451a03; }
+.dark .text-amber-600 { color: #fbbf24; } /* amber-400 */
+.dark .text-amber-700 { color: #fbbf24; }
+.dark .text-amber-800 { color: #fcd34d; } /* amber-300 */
+.dark .border-amber-200 { border-color: #92400e; } /* amber-800 */
+.dark .border-amber-300 { border-color: #92400e; }
+
+.dark .bg-blue-100 { background-color: #172554; } /* blue-950 */
+.dark .text-blue-700 { color: #60a5fa; } /* blue-400 */
+.dark .border-blue-300 { border-color: #1e40af; } /* blue-800 */

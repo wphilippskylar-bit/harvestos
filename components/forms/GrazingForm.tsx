@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import { errorMessage } from "@/lib/errors";
+import { enqueueWrite, isNetworkError } from "@/lib/offlineQueue";
 
 type Row = { id: string; label: string };
 type Field = { id: string; name: string; field_rows: Row[] };
@@ -24,6 +25,8 @@ export default function GrazingForm({
   const [checking, setChecking] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [queued, setQueued] = useState(false);
+  const [skippedRestCheck, setSkippedRestCheck] = useState(false);
 
   const selectedField = fields.find((f) => f.id === fieldId);
 
@@ -33,36 +36,76 @@ export default function GrazingForm({
     if (!fieldId) { setError("Pick a field/pasture first."); return; }
 
     if (!acknowledged) {
-      setChecking(true);
-      const { data, error: rpcError } = await supabase.rpc("check_grazing_rest", {
-        p_field_id: fieldId,
-        p_row_id: rowId || null,
-        p_start_date: startDate,
-        p_rest_days: 25,
-      });
-      setChecking(false);
-      if (rpcError) { setError(rpcError.message); return; }
-      if (data && data.length > 0) { setConflict(data[0] as RestConflict); return; }
+      // Offline: the rest-conflict check itself needs a round trip, same as the save would.
+      // Can't verify it locally, so skip straight to queueing the entry rather than blocking
+      // on a check that can't run — the rest-window warning just won't fire for this one entry.
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        setSkippedRestCheck(true);
+      } else {
+        setChecking(true);
+        try {
+          const { data, error: rpcError } = await supabase.rpc("check_grazing_rest", {
+            p_field_id: fieldId,
+            p_row_id: rowId || null,
+            p_start_date: startDate,
+            p_rest_days: 25,
+          });
+          setChecking(false);
+          if (rpcError) {
+            if (isNetworkError(rpcError)) {
+              setSkippedRestCheck(true);
+            } else {
+              setError(rpcError.message);
+              return;
+            }
+          } else if (data && data.length > 0) {
+            setConflict(data[0] as RestConflict);
+            return;
+          }
+        } catch (err) {
+          setChecking(false);
+          if (!isNetworkError(err)) { setError(errorMessage(err, "Could not check rest period")); return; }
+          setSkippedRestCheck(true);
+        }
+      }
     }
 
+    const payload = {
+      org_id: orgId,
+      field_id: fieldId,
+      row_id: rowId || null,
+      start_date: startDate,
+      end_date: endDate || null,
+      animal_notes: animalNotes.trim() || null,
+    };
     setSaving(true);
     try {
-      const { error: insertError } = await supabase.from("grazing_events").insert({
-        org_id: orgId,
-        field_id: fieldId,
-        row_id: rowId || null,
-        start_date: startDate,
-        end_date: endDate || null,
-        animal_notes: animalNotes.trim() || null,
-      });
+      const { error: insertError } = await supabase.from("grazing_events").insert(payload);
       if (insertError) throw insertError;
       onDone();
       router.refresh();
     } catch (err) {
+      if (isNetworkError(err)) {
+        enqueueWrite({ table: "grazing_events", op: "insert", payload, label: `Grazing — ${selectedField?.name ?? "field"}` });
+        setQueued(true);
+        setTimeout(onDone, 1200);
+        return;
+      }
       setError(errorMessage(err, "Could not save grazing entry"));
     } finally {
       setSaving(false);
     }
+  }
+
+  if (queued) {
+    return (
+      <div className="card p-4 mt-2 space-y-1">
+        <p className="text-sm text-emerald-700 font-medium">Saved locally — will upload when you're back online.</p>
+        {skippedRestCheck && (
+          <p className="text-xs text-stone-500">Couldn't check the pasture-rest warning offline, so this entry skipped that check — worth a manual look at this field's grazing history once you're back online.</p>
+        )}
+      </div>
+    );
   }
 
   if (conflict) {

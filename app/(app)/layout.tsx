@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Nav from "@/components/Nav";
 import SignOutButton from "@/components/SignOutButton";
 import FeedbackWidget from "@/components/FeedbackWidget";
+import OfflineSyncBanner from "@/components/OfflineSyncBanner";
 import { getOrgContext, getNavOrder } from "@/lib/data";
 import { DEMO_MODE } from "@/lib/demo-mode";
 
@@ -43,6 +44,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <div className="max-w-6xl mx-auto px-4 md:px-8 py-6 md:py-10">{children}</div>
       </main>
       <FeedbackWidget orgId={ctx.orgId} userId={ctx.userId} userEmail={ctx.userEmail} />
+      <OfflineSyncBanner />
     </div>
   );
 }

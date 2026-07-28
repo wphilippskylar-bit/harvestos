@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
+import ThemeToggle from "@/components/ThemeToggle";
 
 // Default order, grouped by theme (production → money → reference) — this is what a fresh
 // account sees, and what a per-user custom order (see Settings → "Customize navigation") falls
@@ -77,9 +78,12 @@ export default function Nav({
       {/* Mobile top bar */}
       <div className="md:hidden flex items-center justify-between border-b border-stone-200 bg-white px-4 py-3 sticky top-0 z-30">
         <div className="font-bold text-brand-700">Harvest OS</div>
-        <button className="btn-secondary !px-3 !py-1.5" onClick={() => setOpen(!open)}>
-          {open ? "Close" : "Menu"}
-        </button>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <button className="btn-secondary !px-3 !py-1.5" onClick={() => setOpen(!open)}>
+            {open ? "Close" : "Menu"}
+          </button>
+        </div>
       </div>
 
       {/* Sidebar (desktop) / drawer (mobile) */}
@@ -126,8 +130,11 @@ export default function Nav({
               );
             })}
           </nav>
-          <div className="p-4 border-t border-stone-100">
-            <div className="text-xs text-stone-400 mb-2 capitalize">Role: {role || "member"}</div>
+          <div className="p-4 border-t border-stone-100 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="text-xs text-stone-400 capitalize">Role: {role || "member"}</div>
+              <ThemeToggle />
+            </div>
             <button className="btn-secondary w-full !py-1.5 text-sm" onClick={handleLogout}>
               Log out
             </button>

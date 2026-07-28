@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import { errorMessage } from "@/lib/errors";
+import { enqueueWrite, isNetworkError } from "@/lib/offlineQueue";
 
 const TREATMENT_TYPES = [
   { key: "vaccine", label: "Vaccine" },
@@ -27,31 +28,49 @@ export default function HealthLogForm({
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [queued, setQueued] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     setError(null);
+    const payload = {
+      org_id: orgId,
+      animal_id: animalId,
+      log_date: logDate,
+      treatment_type: treatmentType,
+      treatment_name: treatmentName.trim() || null,
+      withdrawal_days: withdrawalDays ? Number(withdrawalDays) : null,
+      cost: cost ? Number(cost) : null,
+      notes: notes.trim() || null,
+    };
     try {
       if (DEMO_MODE) { onDone(); return; }
-      const { error: insertError } = await supabase.from("animal_health_logs").insert({
-        org_id: orgId,
-        animal_id: animalId,
-        log_date: logDate,
-        treatment_type: treatmentType,
-        treatment_name: treatmentName.trim() || null,
-        withdrawal_days: withdrawalDays ? Number(withdrawalDays) : null,
-        cost: cost ? Number(cost) : null,
-        notes: notes.trim() || null,
-      });
+      const { error: insertError } = await supabase.from("animal_health_logs").insert(payload);
       if (insertError) throw insertError;
       onDone();
       router.refresh();
     } catch (err) {
+      // No connection right now — save it locally instead of losing the entry. It'll upload
+      // automatically once the device is back online (see lib/offlineQueue.ts).
+      if (isNetworkError(err)) {
+        enqueueWrite({ table: "animal_health_logs", op: "insert", payload, label: `Health log — ${treatmentName || treatmentType}` });
+        setQueued(true);
+        setTimeout(onDone, 1200);
+        return;
+      }
       setError(errorMessage(err, "Could not save health log entry"));
     } finally {
       setSaving(false);
     }
+  }
+
+  if (queued) {
+    return (
+      <div className="card p-4 mt-2 text-sm text-emerald-700 font-medium">
+        Saved locally — will upload when you're back online.
+      </div>
+    );
   }
 
   return (
