@@ -6,6 +6,7 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import ThemeToggle from "@/components/ThemeToggle";
+import FeedbackWidget from "@/components/FeedbackWidget";
 
 // Default order, grouped by theme (production → money → reference) — this is what a fresh
 // account sees, and what a per-user custom order (see Settings → "Customize navigation") falls
@@ -40,8 +41,16 @@ export const BASE_NAV = [
 ];
 
 export default function Nav({
-  orgName, role, operationTypes = ["microgreens"], navOrder,
-}: { orgName: string; role: string; operationTypes?: string[]; navOrder?: string[] | null }) {
+  orgName, role, operationTypes = ["microgreens"], navOrder, orgId, userId, userEmail,
+}: {
+  orgName: string;
+  role: string;
+  operationTypes?: string[];
+  navOrder?: string[] | null;
+  orgId?: string;
+  userId?: string | null;
+  userEmail?: string | null;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -79,6 +88,7 @@ export default function Nav({
       <div className="md:hidden flex items-center justify-between border-b border-stone-200 bg-white px-4 py-3 sticky top-0 z-30">
         <div className="font-bold text-brand-700">Harvest OS</div>
         <div className="flex items-center gap-2">
+          <FeedbackWidget orgId={orgId} userId={userId} userEmail={userEmail} compact />
           <ThemeToggle />
           <button className="btn-secondary !px-3 !py-1.5" onClick={() => setOpen(!open)}>
             {open ? "Close" : "Menu"}
@@ -135,6 +145,7 @@ export default function Nav({
               <div className="text-xs text-stone-400 capitalize">Role: {role || "member"}</div>
               <ThemeToggle />
             </div>
+            <FeedbackWidget orgId={orgId} userId={userId} userEmail={userEmail} />
             <button className="btn-secondary w-full !py-1.5 text-sm" onClick={handleLogout}>
               Log out
             </button>

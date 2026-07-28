@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import { errorMessage } from "@/lib/errors";
 
-const CATEGORIES = ["Seeds", "Trays", "Medium", "Equipment", "Supplies", "Packaging", "Rent", "Utilities", "Insurance", "Marketing", "Livestock", "Other"];
+const CATEGORIES = ["Seeds", "Nutrients", "Feed", "Trays", "Medium", "Equipment", "Supplies", "Packaging", "Rent", "Utilities", "Insurance", "Marketing", "Livestock", "Other"];
 const NEW_SUPPLY = "__new__";
 
 type Crop = { id: string; name: string };
@@ -49,11 +49,15 @@ export default function PurchaseForm({
   const router = useRouter();
   const isEdit = !!existingPurchase;
   // Editing is scoped to the core purchase fields only — a seed purchase can still be edited as a
-  // seed purchase (crop/weight included), but supply/equipment/livestock purchases edit as a plain
-  // record without touching their linked farm_supplies/equipment_assets/animals row, since safely
-  // reconciling those side-effects on every field change is a lot riskier than just not touching them.
-  const initialMode: "general" | "seed" = existingPurchase?.crop_id && existingPurchase?.seed_weight_g ? "seed" : "general";
-  const [mode, setMode] = useState<"general" | "seed" | "supply" | "equipment" | "livestock">(initialMode);
+  // seed purchase (crop/weight included, via the "This is a seed purchase" toggle below), but
+  // supply/equipment/livestock purchases edit as a plain record without touching their linked
+  // farm_supplies/equipment_assets/animals row, since safely reconciling those side-effects on
+  // every field change is a lot riskier than just not touching them.
+  const [mode, setMode] = useState<"purchase" | "supply" | "equipment" | "livestock">("purchase");
+  // "Purchase" and the old separate "Seed purchase" tab are the same mode now — this toggle just
+  // reveals the crop/weight fields and forces the category to Seeds, instead of making someone
+  // pick a whole different tab for what's otherwise an identical form.
+  const [isSeed, setIsSeed] = useState(!!(existingPurchase?.crop_id && existingPurchase?.seed_weight_g));
   const [item, setItem] = useState(existingPurchase?.item ?? "");
   const [category, setCategory] = useState(existingPurchase?.category ?? "Seeds");
   const [date, setDate] = useState(existingPurchase?.purchase_date ?? new Date().toISOString().slice(0, 10));
@@ -91,11 +95,6 @@ export default function PurchaseForm({
   function switchMode(next: typeof mode) {
     setMode(next);
     setError(null);
-    if (next === "seed") {
-      const crop = crops.find((c) => c.id === cropId) ?? crops[0];
-      setCategory("Seeds");
-      if (crop && !item) setItem(`${crop.name} seed`);
-    }
     if (next === "supply") {
       const supply = supplies.find((s) => s.supply_id === supplyId);
       setCategory("Supplies");
@@ -106,6 +105,16 @@ export default function PurchaseForm({
     }
     if (next === "livestock") {
       setCategory("Livestock");
+    }
+  }
+
+  function toggleSeed(next: boolean) {
+    setIsSeed(next);
+    setError(null);
+    if (next) {
+      const crop = crops.find((c) => c.id === cropId) ?? crops[0];
+      setCategory("Seeds");
+      if (crop && !item) setItem(`${crop.name} seed`);
     }
   }
 
@@ -173,8 +182,8 @@ export default function PurchaseForm({
             cost: Number(cost) || 0,
             tax: Number(tax) || 0,
             shipping: Number(shipping) || 0,
-            crop_id: mode === "seed" ? cropId || null : null,
-            seed_weight_g: mode === "seed" && seedWeightG ? Number(seedWeightG) : null,
+            crop_id: isSeed ? cropId || null : null,
+            seed_weight_g: isSeed && seedWeightG ? Number(seedWeightG) : null,
             field_id: fieldId || null,
             tax_deductible: taxDeductible,
           })
@@ -197,8 +206,8 @@ export default function PurchaseForm({
           cost: Number(cost) || 0,
           tax: Number(tax) || 0,
           shipping: Number(shipping) || 0,
-          crop_id: mode === "seed" ? cropId || null : null,
-          seed_weight_g: mode === "seed" && seedWeightG ? Number(seedWeightG) : null,
+          crop_id: isSeed ? cropId || null : null,
+          seed_weight_g: isSeed && seedWeightG ? Number(seedWeightG) : null,
           field_id: fieldId || null,
           supply_id: mode === "supply" ? resolvedSupplyId : null,
           supply_qty: mode === "supply" && supplyQty ? Number(supplyQty) : null,
@@ -238,14 +247,13 @@ export default function PurchaseForm({
           Editing a purchase{existingPurchase?.supply_id || existingPurchase?.animal_id || category === "Equipment" ? (
             <> — this was originally a supply/equipment/livestock purchase, so its linked record (stock item, asset, or animal) won&apos;t be changed here, only this purchase&apos;s own fields.</>
           ) : (
-            <>. If this is a seed purchase, use the Seed tab below so inventory stays correct.</>
+            <>.</>
           )}
         </p>
       ) : (
         <div className="flex flex-wrap rounded-lg bg-stone-100 p-1 text-sm font-medium gap-y-1">
           {([
-            ["general", "General purchase"],
-            ["seed", "Seed purchase"],
+            ["purchase", "Purchase"],
             ["supply", "Supply purchase"],
             ["equipment", "Equipment"],
             ["livestock", "Livestock"],
@@ -261,22 +269,14 @@ export default function PurchaseForm({
           ))}
         </div>
       )}
-      {isEdit && !existingPurchase?.supply_id && !existingPurchase?.animal_id && category !== "Equipment" && (
-        <div className="flex rounded-lg bg-stone-100 p-1 text-sm font-medium max-w-xs">
-          {([["general", "General"], ["seed", "Seed"]] as const).map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              className={`flex-1 rounded-md py-1.5 px-2 transition-colors ${mode === key ? "bg-white shadow-sm text-brand-700" : "text-stone-500"}`}
-              onClick={() => switchMode(key)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+      {(mode === "purchase") && !existingPurchase?.supply_id && !existingPurchase?.animal_id && category !== "Equipment" && (
+        <label className="flex items-center gap-1.5 text-sm text-stone-600">
+          <input type="checkbox" checked={isSeed} onChange={(e) => toggleSeed(e.target.checked)} />
+          This is a seed purchase
+        </label>
       )}
 
-      {mode === "seed" && (
+      {isSeed && mode === "purchase" && (
         <p className="text-xs text-stone-400 -mt-2">
           Adds straight to that crop&apos;s seed inventory (grams on hand) as soon as you save.
         </p>
@@ -301,7 +301,7 @@ export default function PurchaseForm({
       )}
 
       <div className="grid sm:grid-cols-3 gap-4">
-        {mode === "seed" && (
+        {isSeed && mode === "purchase" && (
           <>
             <div>
               <label className="label">Crop</label>
@@ -450,7 +450,7 @@ export default function PurchaseForm({
           </>
         )}
 
-        <div className={mode === "seed" ? "" : "sm:col-span-2"}>
+        <div className={isSeed ? "" : "sm:col-span-2"}>
           <label className="label">Item</label>
           <input className="input" value={item} onChange={(e) => setItem(e.target.value)} required />
         </div>
@@ -460,7 +460,7 @@ export default function PurchaseForm({
             className="input"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            disabled={mode === "seed" || mode === "supply" || mode === "equipment" || mode === "livestock"}
+            disabled={isSeed || mode === "supply" || mode === "equipment" || mode === "livestock"}
           >
             {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
           </select>

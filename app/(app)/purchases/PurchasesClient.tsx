@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
@@ -24,6 +24,7 @@ export default function PurchasesClient({
 }) {
   const supabase = createClient();
   const router = useRouter();
+  const topRef = useRef<HTMLDivElement>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const total = purchases.reduce((a, p) => a + (p.total ?? 0), 0);
@@ -36,9 +37,15 @@ export default function PurchasesClient({
     router.refresh();
   }
 
+  function startEdit(id: string) {
+    setEditingId(id);
+    setShowForm(false);
+    topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
+      <div ref={topRef} className="flex justify-between items-center">
         <div className="text-sm text-stone-500">Total spend: <span className="font-semibold text-stone-800">{fmtCurrency2(total)}</span></div>
         {!showForm && !editingId && <button className="btn-primary" onClick={() => setShowForm(true)}>+ Add purchase</button>}
       </div>
@@ -60,47 +67,83 @@ export default function PurchasesClient({
       {purchases.length === 0 ? (
         <EmptyState title="No purchases logged yet" hint="Log seeds, trays, equipment, and supplies here to track real cost per tray." />
       ) : (
-        <div className="card overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-stone-50 text-xs text-stone-500 uppercase tracking-wide">
-              <tr>
-                <th className="text-left py-3 px-4">Date</th>
-                <th className="text-left py-3 px-4">Item</th>
-                <th className="text-left py-3 px-4">Category</th>
-                <th className="text-left py-3 px-4">Vendor</th>
-                <th className="text-right py-3 px-4">Total</th>
-                {isEditor && <th className="text-right py-3 px-4">&nbsp;</th>}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-stone-100">
-              {purchases.map((p) => (
-                <tr key={p.id}>
-                  <td className="py-2.5 px-4 text-stone-500">{p.purchase_date}</td>
-                  <td className="py-2.5 px-4 font-medium text-stone-700">{p.item}</td>
-                  <td className="py-2.5 px-4 text-stone-500">{p.category}</td>
-                  <td className="py-2.5 px-4 text-stone-500">{p.vendor ?? "—"}</td>
-                  <td className="py-2.5 px-4 text-right font-medium">{fmtCurrency2(p.total)}</td>
-                  {isEditor && (
-                    <td className="py-2.5 px-4 text-right whitespace-nowrap">
-                      <button
-                        className="text-xs font-medium text-brand-700 hover:underline mr-3"
-                        onClick={() => { setEditingId(p.id); setShowForm(false); }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="text-xs font-medium text-red-600 hover:underline"
-                        onClick={() => deletePurchase(p.id, p.item)}
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  )}
+        <>
+          {/* Mobile: stacked cards — everything visible without side-scrolling. */}
+          <div className="md:hidden space-y-2">
+            {purchases.map((p) => (
+              <div key={p.id} className="card p-3 space-y-1.5">
+                <div className="flex justify-between items-start gap-2">
+                  <div className="font-medium text-stone-700 text-sm">{p.item}</div>
+                  <div className="font-medium text-sm whitespace-nowrap">{fmtCurrency2(p.total)}</div>
+                </div>
+                <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-stone-500">
+                  <span>{p.purchase_date}</span>
+                  <span>{p.category}</span>
+                  <span>{p.vendor ?? "—"}</span>
+                </div>
+                {isEditor && (
+                  <div className="flex gap-3 pt-1">
+                    <button
+                      className="text-xs font-medium text-brand-700 hover:underline"
+                      onClick={() => startEdit(p.id)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="text-xs font-medium text-red-600 hover:underline"
+                      onClick={() => deletePurchase(p.id, p.item)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop: table. */}
+          <div className="hidden md:block card overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-stone-50 text-xs text-stone-500 uppercase tracking-wide">
+                <tr>
+                  <th className="text-left py-3 px-4">Date</th>
+                  <th className="text-left py-3 px-4">Item</th>
+                  <th className="text-left py-3 px-4">Category</th>
+                  <th className="text-left py-3 px-4">Vendor</th>
+                  <th className="text-right py-3 px-4">Total</th>
+                  {isEditor && <th className="text-right py-3 px-4">&nbsp;</th>}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-stone-100">
+                {purchases.map((p) => (
+                  <tr key={p.id}>
+                    <td className="py-2.5 px-4 text-stone-500">{p.purchase_date}</td>
+                    <td className="py-2.5 px-4 font-medium text-stone-700">{p.item}</td>
+                    <td className="py-2.5 px-4 text-stone-500">{p.category}</td>
+                    <td className="py-2.5 px-4 text-stone-500">{p.vendor ?? "—"}</td>
+                    <td className="py-2.5 px-4 text-right font-medium">{fmtCurrency2(p.total)}</td>
+                    {isEditor && (
+                      <td className="py-2.5 px-4 text-right whitespace-nowrap">
+                        <button
+                          className="text-xs font-medium text-brand-700 hover:underline mr-3"
+                          onClick={() => startEdit(p.id)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="text-xs font-medium text-red-600 hover:underline"
+                          onClick={() => deletePurchase(p.id, p.item)}
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       <FarmSuppliesSection

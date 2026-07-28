@@ -11,13 +11,15 @@ const CATEGORIES = [
   { key: "general", label: "General feedback" },
 ];
 
-// Mounted globally in app/(app)/layout.tsx — a low-friction way for beta testers to flag a
-// problem or idea without leaving the page or hunting for an email address. Deliberately minimal:
-// one floating button, a small form, done. Feedback lands in the `feedback` table (migration
-// 0028) and is only readable by platform admins — see the Feedback tab on /admin.
+// Mounted in components/Nav.tsx (once in the mobile top bar, once in the desktop sidebar
+// footer) — a low-friction way for beta testers to flag a problem or idea without leaving the
+// page or hunting for an email address. Lives in one fixed spot in the nav rather than floating
+// over the page content, so it doesn't sit on top of whatever the user is working on. Feedback
+// lands in the `feedback` table (migration 0028) and is only readable by platform admins — see
+// the Feedback tab on /admin.
 export default function FeedbackWidget({
-  orgId, userId, userEmail,
-}: { orgId?: string; userId?: string | null; userEmail?: string | null }) {
+  orgId, userId, userEmail, compact,
+}: { orgId?: string; userId?: string | null; userEmail?: string | null; compact?: boolean }) {
   const supabase = createClient();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -62,7 +64,11 @@ export default function FeedbackWidget({
     <>
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-5 right-5 z-50 rounded-full bg-brand-700 text-white shadow-lg px-4 py-2.5 text-sm font-medium hover:bg-brand-800 transition-colors print:hidden"
+        className={
+          compact
+            ? "btn-secondary !px-3 !py-1.5"
+            : "btn-secondary w-full !py-1.5 text-sm"
+        }
         aria-label="Send feedback"
       >
         Feedback
