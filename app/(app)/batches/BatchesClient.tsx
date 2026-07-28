@@ -7,6 +7,7 @@ import { DEMO_MODE } from "@/lib/demo-mode";
 import { StatusBadge, EmptyState } from "@/components/ui";
 import BatchForm from "@/components/forms/BatchForm";
 import HarvestForm from "@/components/forms/HarvestForm";
+import BatchQrCode from "@/components/BatchQrCode";
 
 const STATUSES = ["germinating", "growing", "harvested", "sold_out", "composted"];
 const ACTIVE_STATUSES = ["germinating", "growing"];
@@ -24,6 +25,7 @@ export default function BatchesClient({
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [harvestingId, setHarvestingId] = useState<string | null>(null);
+  const [qrBatch, setQrBatch] = useState<{ id: string; batch_id: string } | null>(null);
   const supabase = createClient();
   const router = useRouter();
 
@@ -118,6 +120,12 @@ export default function BatchesClient({
                       <span className="ml-2"><StatusBadge status={b.status} /></span>
                     </td>
                     <td className="py-2.5 px-4 text-right whitespace-nowrap">
+                      <button
+                        className="text-xs font-medium text-stone-500 hover:underline mr-3"
+                        onClick={() => setQrBatch({ id: b.id, batch_id: b.batch_id })}
+                      >
+                        QR
+                      </button>
                       {ACTIVE_STATUSES.includes(b.status) && (
                         <button
                           className="text-xs font-medium text-emerald-700 hover:underline mr-3"
@@ -156,6 +164,10 @@ export default function BatchesClient({
             </tbody>
           </table>
         </div>
+      )}
+
+      {qrBatch && (
+        <BatchQrCode batchId={qrBatch.id} batchLabel={qrBatch.batch_id} onClose={() => setQrBatch(null)} />
       )}
     </div>
   );

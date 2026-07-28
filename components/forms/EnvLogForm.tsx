@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import { errorMessage } from "@/lib/errors";
 
-export default function EnvLogForm({ orgId, onDone }: { orgId: string; onDone: () => void }) {
+export default function EnvLogForm({ orgId, batchId, onDone }: { orgId: string; batchId?: string; onDone: () => void }) {
   const supabase = createClient();
   const router = useRouter();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -26,6 +26,7 @@ export default function EnvLogForm({ orgId, onDone }: { orgId: string; onDone: (
       if (DEMO_MODE) { onDone(); return; }
       const { error } = await supabase.from("environmental_logs").insert({
         org_id: orgId,
+        batch_id: batchId || null,
         log_date: date,
         temperature_f: temp ? Number(temp) : null,
         humidity_pct: humidity ? Number(humidity) : null,

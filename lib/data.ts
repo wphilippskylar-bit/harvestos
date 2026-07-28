@@ -114,6 +114,29 @@ export async function getEnvironmentalLogs(orgId: string) {
   return data ?? [];
 }
 
+// Single batch by id — used by the QR "quick log" landing page (see app/(app)/batches/[id]/quick),
+// which is reached by scanning a printed batch QR code rather than by navigating the app's normal
+// nav, so it needs to fetch just the one batch rather than the whole list.
+export async function getBatchById(orgId: string, id: string) {
+  if (DEMO_MODE) return demoBatches.find((b) => b.id === id) ?? null;
+  const supabase = createClient();
+  const { data } = await supabase.from("batches").select("*").eq("org_id", orgId).eq("id", id).maybeSingle();
+  return data ?? null;
+}
+
+export async function getEnvironmentalLogsForBatch(orgId: string, batchId: string) {
+  if (DEMO_MODE) return [];
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("environmental_logs")
+    .select("*")
+    .eq("org_id", orgId)
+    .eq("batch_id", batchId)
+    .order("log_date", { ascending: false })
+    .limit(20);
+  return data ?? [];
+}
+
 export async function getGoals(orgId: string) {
   if (DEMO_MODE) return demoGoals;
   const supabase = createClient();
