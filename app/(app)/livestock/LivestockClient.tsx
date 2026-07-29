@@ -9,6 +9,9 @@ import AnimalForm from "@/components/forms/AnimalForm";
 import HealthLogForm from "@/components/forms/HealthLogForm";
 import GrazingForm from "@/components/forms/GrazingForm";
 import FarmSuppliesSection from "@/components/FarmSuppliesSection";
+import OfflineDataBanner from "@/components/OfflineDataBanner";
+import { useLocalFirstList } from "@/lib/useLocalFirstList";
+import { cacheRows, getCachedRows } from "@/lib/localDb";
 
 type Animal = {
   id: string;
@@ -45,7 +48,7 @@ type GrazingEvent = {
 };
 
 export default function LivestockClient({
-  orgId, role, animals, fields, grazingEvents, herdSummary = [], feedSupplies = [],
+  orgId, role, animals: serverAnimals, fields, grazingEvents, herdSummary = [], feedSupplies = [],
 }: {
   orgId: string;
   role: string;
@@ -58,6 +61,10 @@ export default function LivestockClient({
   const supabase = createClient();
   const router = useRouter();
   const isEditor = role === "owner" || role === "admin" || role === "member";
+  // See lib/useLocalFirstList.ts — same local-first read pattern as Batches: cache animals as
+  // they load, fall back to the cache (labeled via OfflineDataBanner) if the server hands down
+  // nothing while offline.
+  const { rows: animals, usingCache, cachedAt } = useLocalFirstList("animals", orgId, serverAnimals);
   const [showAnimalForm, setShowAnimalForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -74,12 +81,22 @@ export default function LivestockClient({
 
   async function loadLogs(animalId: string) {
     if (DEMO_MODE) { setLogs((l) => ({ ...l, [animalId]: [] })); return; }
-    const { data } = await supabase
-      .from("animal_health_logs")
-      .select("*")
-      .eq("animal_id", animalId)
-      .order("log_date", { ascending: false });
-    setLogs((l) => ({ ...l, [animalId]: data ?? [] }));
+    try {
+      const { data, error } = await supabase
+        .from("animal_health_logs")
+        .select("*")
+        .eq("animal_id", animalId)
+        .order("log_date", { ascending: false });
+      if (error) throw error;
+      setLogs((l) => ({ ...l, [animalId]: data ?? [] }));
+      if (data?.length) cacheRows("animal_health_logs", orgId, data);
+    } catch {
+      // Couldn't reach Supabase for this animal's logs — fall back to whatever was cached the
+      // last time they loaded successfully, rather than showing an empty list that looks like
+      // "no health history" when it might just be "no signal right now."
+      const cached = await getCachedRows<HealthLog & { animal_id: string }>("animal_health_logs", orgId);
+      setLogs((l) => ({ ...l, [animalId]: cached.filter((row) => row.animal_id === animalId) }));
+    }
   }
 
   function toggleExpand(animalId: string) {
@@ -170,6 +187,7 @@ export default function LivestockClient({
   if (animals.length === 0 && !showAnimalForm) {
     return (
       <div className="space-y-4">
+        <OfflineDataBanner usingCache={usingCache} cachedAt={cachedAt} />
         <EmptyState
           title="No animals yet"
           hint="Add an animal to start tracking health treatments and withdrawal periods."
@@ -188,6 +206,7 @@ export default function LivestockClient({
 
   return (
     <div className="space-y-4">
+      <OfflineDataBanner usingCache={usingCache} cachedAt={cachedAt} />
       {herdSection}
       {isEditor && (
         showAnimalForm

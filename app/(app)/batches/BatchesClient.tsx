@@ -8,6 +8,8 @@ import { StatusBadge, EmptyState } from "@/components/ui";
 import BatchForm from "@/components/forms/BatchForm";
 import HarvestForm from "@/components/forms/HarvestForm";
 import BatchQrCode from "@/components/BatchQrCode";
+import OfflineDataBanner from "@/components/OfflineDataBanner";
+import { useLocalFirstList } from "@/lib/useLocalFirstList";
 
 const STATUSES = ["germinating", "growing", "harvested", "sold_out", "composted"];
 const ACTIVE_STATUSES = ["germinating", "growing"];
@@ -19,8 +21,12 @@ const TABS = [
 ] as const;
 
 export default function BatchesClient({
-  orgId, batches, crops, inventory, weightUnit,
+  orgId, batches: serverBatches, crops, inventory, weightUnit,
 }: { orgId: string; batches: any[]; crops: any[]; inventory: any[]; weightUnit?: string }) {
+  // See lib/useLocalFirstList.ts — mirrors batches into the local cache as they load, and falls
+  // back to that cache (clearly labeled, via OfflineDataBanner) if the server ever hands down an
+  // empty list while offline instead of silently showing "no batches yet."
+  const { rows: batches, usingCache, cachedAt } = useLocalFirstList("batches", orgId, serverBatches);
   const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("current");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -52,6 +58,7 @@ export default function BatchesClient({
 
   return (
     <div>
+      <OfflineDataBanner usingCache={usingCache} cachedAt={cachedAt} />
       <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
         <div className="flex rounded-lg bg-stone-100 p-1 text-sm font-medium">
           {TABS.map((t) => (
