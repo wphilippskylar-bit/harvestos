@@ -72,17 +72,30 @@ export function isNetworkError(err: unknown): boolean {
 // Attempts every queued write in order; stops at the first failure that still looks like a
 // connectivity problem (so it retries cleanly next time), but skips-and-drops a write that the
 // server actively rejects (e.g. a row deleted elsewhere in the meantime) rather than getting stuck
-// retrying something that will never succeed — logged to the console for visibility since there's
-// no error-reporting service wired up yet.
-export async function flushQueue(): Promise<{ synced: number; remaining: number }> {
-  const queue = readQueue();
-  if (queue.length === 0) return { synced: 0, remaining: 0 };
+// retrying something that will never succeed.
+//
+// This is also the one place "conflict handling" lives for this app (Phase 4 of the offline plan —
+// see HarvestOS_Offline_LocalFirst_Plan.md in the project docs): since this is one farmer entering
+// their own data rather than a team editing the same records concurrently, the deliberate choice is
+// last-write-wins with no merge logic — a queued `update` just overwrites whatever's on the server
+// when it finally syncs. The one thing that *does* need to reach the user is a write the server
+// flatly refused (not "offline", an actual rejection — e.g. the row it targeted got deleted from
+// another device in the meantime); those are returned as `dropped` so the caller can surface them
+// instead of the entry just silently vanishing from the queue.
+//
+// The queue is persisted after every single write, not just once at the end — if the flush gets
+// interrupted partway (tab closed, connection drops mid-sync), whatever already synced is already
+// removed from local storage, so resuming later can't accidentally resubmit it and create a
+// duplicate row.
+export async function flushQueue(): Promise<{ synced: number; remaining: number; dropped: PendingWrite[] }> {
+  let queue = readQueue();
+  if (queue.length === 0) return { synced: 0, remaining: 0, dropped: [] };
   const supabase = createClient();
   let synced = 0;
-  const remaining: PendingWrite[] = [];
+  const dropped: PendingWrite[] = [];
 
-  for (let i = 0; i < queue.length; i++) {
-    const write = queue[i];
+  while (queue.length > 0) {
+    const write = queue[0];
     try {
       const table = supabase.from(write.table);
       const { error } =
@@ -91,18 +104,21 @@ export async function flushQueue(): Promise<{ synced: number; remaining: number 
           : await table.update(write.payload).eq(write.matchColumn!, write.matchValue!);
       if (error) throw error;
       synced++;
+      queue = queue.slice(1);
+      writeQueue(queue);
     } catch (err) {
       if (isNetworkError(err)) {
-        // Still offline (or connection dropped mid-flush) — keep this and everything after it
-        // queued rather than reordering syncs out of sequence.
-        remaining.push(...queue.slice(i));
+        // Still offline (or connection dropped mid-flush) — stop here, everything from this write
+        // onward stays queued in the order it was entered.
         break;
       }
-      // eslint-disable-next-line no-console
-      console.error("Dropping offline-queued write that the server rejected:", write, err);
+      // A real rejection, not a connectivity problem — drop it rather than retrying something
+      // that will never succeed, but tell the caller so this doesn't just vanish silently.
+      dropped.push(write);
+      queue = queue.slice(1);
+      writeQueue(queue);
     }
   }
 
-  writeQueue(remaining);
-  return { synced, remaining: remaining.length };
+  return { synced, remaining: queue.length, dropped };
 }
