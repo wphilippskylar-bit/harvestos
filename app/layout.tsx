@@ -4,7 +4,7 @@ import PWARegister from "@/components/PWARegister";
 import ThemeInit from "@/components/ThemeInit";
 
 export const metadata: Metadata = {
-  title: "Harvest OS — Aiyahuta Craft Farm",
+  title: "Harvest OS",
   description: "Farm operations, sales channels, and goal tracking — built for microgreens, ready to scale.",
   manifest: "/manifest.json",
   appleWebApp: {
