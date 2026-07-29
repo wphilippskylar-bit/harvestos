@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import { defaultWeightUnit, weightToGrams, WEIGHT_UNIT_OPTIONS, type WeightUnit } from "@/lib/units";
-import { enqueueWrite, isNetworkError } from "@/lib/offlineQueue";
+import { isNetworkError } from "@/lib/offlineQueue";
+import { useOfflineSubmit } from "@/lib/useOfflineSubmit";
+import OfflineQueuedPanel from "@/components/OfflineQueuedPanel";
 
 type Batch = { id: string; batch_id: string; dry_seed_weight_g: number | null };
 
@@ -26,8 +28,8 @@ export default function HarvestForm({
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [queued, setQueued] = useState(false);
   const [skippedPhoto, setSkippedPhoto] = useState(false);
+  const { queued, attemptOrQueue } = useOfflineSubmit();
 
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null;
@@ -76,20 +78,19 @@ export default function HarvestForm({
         ...(photoUrl ? { photo_url: photoUrl } : {}),
       };
 
-      const { error } = await supabase.from("batches").update(updatePayload).eq("id", batch.id);
-      if (error) throw error;
-      onDone();
-      router.refresh();
-    } catch (err) {
-      if (isNetworkError(err)) {
-        const freshG = freshOz ? weightToGrams(Number(freshOz), unit) : null;
-        const wasteG = wasteOz ? weightToGrams(Number(wasteOz), unit) : null;
-        const yieldRatio = freshG && batch.dry_seed_weight_g ? freshG / batch.dry_seed_weight_g : null;
-        enqueueWrite({
+      const result = await attemptOrQueue(
+        async () => {
+          const { error } = await supabase.from("batches").update(updatePayload).eq("id", batch.id);
+          if (error) throw error;
+        },
+        {
           table: "batches",
           op: "update",
           matchColumn: "id",
           matchValue: batch.id,
+          // Deliberately the payload without photo_url — a queued write can't carry a photo (see
+          // the skip logic above), so it's left out here rather than referencing a photoUrl that,
+          // if this branch is reached, never got uploaded.
           payload: {
             status: "harvested",
             harvest_date: harvestDate,
@@ -98,12 +99,16 @@ export default function HarvestForm({
             yield_ratio: yieldRatio,
           },
           label: `Harvest — ${batch.batch_id}`,
-        });
+        }
+      );
+      if (!result.ok) {
         if (photo) setSkippedPhoto(true);
-        setQueued(true);
         setTimeout(onDone, 1200);
         return;
       }
+      onDone();
+      router.refresh();
+    } catch (err) {
       const message =
         err instanceof Error
           ? err.message
@@ -118,12 +123,11 @@ export default function HarvestForm({
 
   if (queued) {
     return (
-      <div className="mt-2 p-3 rounded-lg border border-emerald-200 bg-emerald-50/60 space-y-1">
-        <p className="text-sm text-emerald-700 font-medium">Saved locally — will upload when you're back online.</p>
+      <OfflineQueuedPanel>
         {skippedPhoto && (
           <p className="text-xs text-stone-500">The photo wasn't attached — photos need a live connection to upload, and can't be queued. Add it later by editing this harvest once you're back online.</p>
         )}
-      </div>
+      </OfflineQueuedPanel>
     );
   }
 

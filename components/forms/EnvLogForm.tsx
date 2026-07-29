@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import { errorMessage } from "@/lib/errors";
-import { enqueueWrite, isNetworkError } from "@/lib/offlineQueue";
+import { useOfflineSubmit } from "@/lib/useOfflineSubmit";
+import OfflineQueuedPanel from "@/components/OfflineQueuedPanel";
 
 export default function EnvLogForm({ orgId, batchId, onDone }: { orgId: string; batchId?: string; onDone: () => void }) {
   const supabase = createClient();
@@ -18,7 +19,11 @@ export default function EnvLogForm({ orgId, batchId, onDone }: { orgId: string; 
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [queued, setQueued] = useState(false);
+  // This form is what the QR "quick log" batch page (see app/(app)/batches/[id]/quick) opens
+  // straight into — exactly the kind of spot-in-the-greenhouse-with-bad-signal moment offline
+  // support exists for. See lib/useOfflineSubmit.ts for the shared save-locally-on-network-failure
+  // pattern shared with Harvest/Grazing/Health log.
+  const { queued, attemptOrQueue } = useOfflineSubmit();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -36,21 +41,17 @@ export default function EnvLogForm({ orgId, batchId, onDone }: { orgId: string; 
     };
     try {
       if (DEMO_MODE) { onDone(); return; }
-      const { error } = await supabase.from("environmental_logs").insert(payload);
-      if (error) throw error;
+      const result = await attemptOrQueue(
+        async () => {
+          const { error } = await supabase.from("environmental_logs").insert(payload);
+          if (error) throw error;
+        },
+        { table: "environmental_logs", op: "insert", payload, label: `Environment reading — ${date}` }
+      );
+      if (!result.ok) { setTimeout(onDone, 1200); return; } // queued offline
       onDone();
       router.refresh();
     } catch (err) {
-      // This form is what the QR "quick log" batch page (see app/(app)/batches/[id]/quick) opens
-      // straight into — exactly the kind of spot-in-the-greenhouse-with-bad-signal moment this
-      // queue exists for. Same pattern as Harvest/Grazing/Health log: save it locally, upload once
-      // back online, rather than losing the reading.
-      if (isNetworkError(err)) {
-        enqueueWrite({ table: "environmental_logs", op: "insert", payload, label: `Environment reading — ${date}` });
-        setQueued(true);
-        setTimeout(onDone, 1200);
-        return;
-      }
       setError(errorMessage(err, "Could not save log"));
     } finally {
       setSaving(false);
@@ -58,11 +59,7 @@ export default function EnvLogForm({ orgId, batchId, onDone }: { orgId: string; 
   }
 
   if (queued) {
-    return (
-      <div className="card p-4 mb-4 text-sm text-emerald-700 font-medium">
-        Saved locally — will upload when you're back online.
-      </div>
-    );
+    return <OfflineQueuedPanel />;
   }
 
   return (

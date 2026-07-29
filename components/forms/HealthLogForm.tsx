@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import { errorMessage } from "@/lib/errors";
-import { enqueueWrite, isNetworkError } from "@/lib/offlineQueue";
+import { useOfflineSubmit } from "@/lib/useOfflineSubmit";
+import OfflineQueuedPanel from "@/components/OfflineQueuedPanel";
 
 const TREATMENT_TYPES = [
   { key: "vaccine", label: "Vaccine" },
@@ -28,7 +29,7 @@ export default function HealthLogForm({
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [queued, setQueued] = useState(false);
+  const { queued, attemptOrQueue } = useOfflineSubmit();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -46,19 +47,17 @@ export default function HealthLogForm({
     };
     try {
       if (DEMO_MODE) { onDone(); return; }
-      const { error: insertError } = await supabase.from("animal_health_logs").insert(payload);
-      if (insertError) throw insertError;
+      const result = await attemptOrQueue(
+        async () => {
+          const { error: insertError } = await supabase.from("animal_health_logs").insert(payload);
+          if (insertError) throw insertError;
+        },
+        { table: "animal_health_logs", op: "insert", payload, label: `Health log — ${treatmentName || treatmentType}` }
+      );
+      if (!result.ok) { setTimeout(onDone, 1200); return; } // queued offline
       onDone();
       router.refresh();
     } catch (err) {
-      // No connection right now — save it locally instead of losing the entry. It'll upload
-      // automatically once the device is back online (see lib/offlineQueue.ts).
-      if (isNetworkError(err)) {
-        enqueueWrite({ table: "animal_health_logs", op: "insert", payload, label: `Health log — ${treatmentName || treatmentType}` });
-        setQueued(true);
-        setTimeout(onDone, 1200);
-        return;
-      }
       setError(errorMessage(err, "Could not save health log entry"));
     } finally {
       setSaving(false);
@@ -66,11 +65,7 @@ export default function HealthLogForm({
   }
 
   if (queued) {
-    return (
-      <div className="card p-4 mt-2 text-sm text-emerald-700 font-medium">
-        Saved locally — will upload when you're back online.
-      </div>
-    );
+    return <OfflineQueuedPanel />;
   }
 
   return (

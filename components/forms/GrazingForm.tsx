@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import { errorMessage } from "@/lib/errors";
-import { enqueueWrite, isNetworkError } from "@/lib/offlineQueue";
+import { isNetworkError } from "@/lib/offlineQueue";
+import { useOfflineSubmit } from "@/lib/useOfflineSubmit";
+import OfflineQueuedPanel from "@/components/OfflineQueuedPanel";
 
 type Row = { id: string; label: string };
 type Field = { id: string; name: string; field_rows: Row[] };
@@ -25,8 +27,8 @@ export default function GrazingForm({
   const [checking, setChecking] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [queued, setQueued] = useState(false);
   const [skippedRestCheck, setSkippedRestCheck] = useState(false);
+  const { queued, attemptOrQueue } = useOfflineSubmit();
 
   const selectedField = fields.find((f) => f.id === fieldId);
 
@@ -80,17 +82,17 @@ export default function GrazingForm({
     };
     setSaving(true);
     try {
-      const { error: insertError } = await supabase.from("grazing_events").insert(payload);
-      if (insertError) throw insertError;
+      const result = await attemptOrQueue(
+        async () => {
+          const { error: insertError } = await supabase.from("grazing_events").insert(payload);
+          if (insertError) throw insertError;
+        },
+        { table: "grazing_events", op: "insert", payload, label: `Grazing — ${selectedField?.name ?? "field"}` }
+      );
+      if (!result.ok) { setTimeout(onDone, 1200); return; } // queued offline
       onDone();
       router.refresh();
     } catch (err) {
-      if (isNetworkError(err)) {
-        enqueueWrite({ table: "grazing_events", op: "insert", payload, label: `Grazing — ${selectedField?.name ?? "field"}` });
-        setQueued(true);
-        setTimeout(onDone, 1200);
-        return;
-      }
       setError(errorMessage(err, "Could not save grazing entry"));
     } finally {
       setSaving(false);
@@ -99,12 +101,11 @@ export default function GrazingForm({
 
   if (queued) {
     return (
-      <div className="card p-4 mt-2 space-y-1">
-        <p className="text-sm text-emerald-700 font-medium">Saved locally — will upload when you're back online.</p>
+      <OfflineQueuedPanel>
         {skippedRestCheck && (
           <p className="text-xs text-stone-500">Couldn't check the pasture-rest warning offline, so this entry skipped that check — worth a manual look at this field's grazing history once you're back online.</p>
         )}
-      </div>
+      </OfflineQueuedPanel>
     );
   }
 

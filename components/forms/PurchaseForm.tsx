@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import { errorMessage } from "@/lib/errors";
+import { useOfflineSubmit } from "@/lib/useOfflineSubmit";
+import OfflineQueuedPanel from "@/components/OfflineQueuedPanel";
 
 const CATEGORIES = ["Seeds", "Nutrients", "Feed", "Trays", "Medium", "Equipment", "Supplies", "Packaging", "Rent", "Utilities", "Insurance", "Marketing", "Livestock", "Other"];
 const NEW_SUPPLY = "__new__";
@@ -91,6 +93,13 @@ export default function PurchaseForm({
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Offline queueing here is scoped to the plain "purchase" insert and the edit-update path —
+  // both are a single row write with nothing else to resolve first. Supply/equipment/livestock
+  // purchases need a network round trip *before* the purchase write even happens (creating a new
+  // supply/animal record, or a second equipment_assets insert after), so those still just fail
+  // normally offline rather than being queued — reconciling a queued write that depends on another
+  // not-yet-synced write is exactly the kind of complexity this scoped queue avoids by design.
+  const { queued, attemptOrQueue } = useOfflineSubmit();
 
   function switchMode(next: typeof mode) {
     setMode(next);
@@ -170,24 +179,62 @@ export default function PurchaseForm({
       if (isEdit) {
         // Edit path: core fields only, never touches supply_id/animal_id/supply_qty or the linked
         // farm_supplies/equipment_assets/animals rows — see the note above the mode/initialMode setup.
-        const { error: updateError } = await supabase
-          .from("purchases")
-          .update({
-            purchase_date: date,
-            item,
-            category,
-            amount_qty: amountQty || null,
-            vendor: vendor || null,
-            cost: Number(cost) || 0,
-            tax: Number(tax) || 0,
-            shipping: Number(shipping) || 0,
-            crop_id: isSeed ? cropId || null : null,
-            seed_weight_g: isSeed && seedWeightG ? Number(seedWeightG) : null,
-            field_id: fieldId || null,
-            tax_deductible: taxDeductible,
-          })
-          .eq("id", existingPurchase!.id);
-        if (updateError) throw updateError;
+        const updatePayload = {
+          purchase_date: date,
+          item,
+          category,
+          amount_qty: amountQty || null,
+          vendor: vendor || null,
+          cost: Number(cost) || 0,
+          tax: Number(tax) || 0,
+          shipping: Number(shipping) || 0,
+          crop_id: isSeed ? cropId || null : null,
+          seed_weight_g: isSeed && seedWeightG ? Number(seedWeightG) : null,
+          field_id: fieldId || null,
+          tax_deductible: taxDeductible,
+        };
+        const result = await attemptOrQueue(
+          async () => {
+            const { error: updateError } = await supabase.from("purchases").update(updatePayload).eq("id", existingPurchase!.id);
+            if (updateError) throw updateError;
+          },
+          { table: "purchases", op: "update", matchColumn: "id", matchValue: existingPurchase!.id, payload: updatePayload, label: `Purchase — ${item}` }
+        );
+        if (!result.ok) { setTimeout(onDone, 1200); return; } // queued offline
+        onDone();
+        router.refresh();
+        return;
+      }
+
+      // Only the plain "purchase" mode (no supply/equipment/livestock resolution needed first) is
+      // eligible to queue offline — see the note above the offline-submit hook setup.
+      if (mode === "purchase") {
+        const insertPayload = {
+          org_id: orgId,
+          purchase_date: date,
+          item,
+          category,
+          amount_qty: amountQty || null,
+          vendor: vendor || null,
+          cost: Number(cost) || 0,
+          tax: Number(tax) || 0,
+          shipping: Number(shipping) || 0,
+          crop_id: isSeed ? cropId || null : null,
+          seed_weight_g: isSeed && seedWeightG ? Number(seedWeightG) : null,
+          field_id: fieldId || null,
+          supply_id: null,
+          supply_qty: null,
+          animal_id: null,
+          tax_deductible: taxDeductible,
+        };
+        const result = await attemptOrQueue(
+          async () => {
+            const { error: insertError } = await supabase.from("purchases").insert(insertPayload);
+            if (insertError) throw insertError;
+          },
+          { table: "purchases", op: "insert", payload: insertPayload, label: `Purchase — ${item}` }
+        );
+        if (!result.ok) { setTimeout(onDone, 1200); return; } // queued offline
         onDone();
         router.refresh();
         return;
@@ -237,6 +284,10 @@ export default function PurchaseForm({
     } finally {
       setSaving(false);
     }
+  }
+
+  if (queued) {
+    return <OfflineQueuedPanel />;
   }
 
   return (
