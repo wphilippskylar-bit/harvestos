@@ -1,13 +1,26 @@
 // Harvest OS service worker
 // - Caches the app shell (static assets, icons, offline fallback) so the app installs cleanly as a
 //   PWA and re-opens instantly even on a flaky connection.
-// - Uses network-first for page navigations (real data should always win when online), falling back
-//   to a cached copy of the page or the offline fallback page when there's no connection.
+// - For page loads AND in-app navigation (tapping around the installed app, not just hard reloads),
+//   races the network against a short timeout: if the network is slow (a farm with one bar of
+//   signal, not fully dead), a cached copy answers immediately instead of the app just sitting
+//   there loading. If the network does eventually come back, the cache is refreshed quietly in the
+//   background so the next visit is up to date.
 // - Uses cache-first for hashed Next.js static assets (safe — the filename changes when content does).
 // - Handles Web Push events (low-stock / harvest-due alerts) and notification clicks.
+//
+// One real limitation this can't remove: the very first time you ever open a given page, there's
+// nothing cached yet, so that first load still needs a real connection. Once it's been opened
+// successfully at least once, this file is what makes every visit after that resilient to a bad
+// or missing connection.
 
-const CACHE_VERSION = "harvestos-v1";
+const CACHE_VERSION = "harvestos-1785327578213";
 const APP_SHELL = ["/offline.html", "/manifest.json", "/icons/icon-192.png", "/icons/icon-512.png"];
+
+// How long to wait for the network before falling back to a cached copy. Tuned for "one bar of
+// signal in a field", not a dead connection — long enough that a normal slow-but-working request
+// still wins, short enough that a farmer isn't staring at a spinner for 30+ seconds.
+const NETWORK_TIMEOUT_MS = 4000;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -23,6 +36,41 @@ self.addEventListener("activate", (event) => {
       .then(() => self.clients.claim())
   );
 });
+
+function timeout(ms) {
+  return new Promise((_, reject) => setTimeout(() => reject(new Error("sw-network-timeout")), ms));
+}
+
+// Network raced against a timeout, with a cached copy as the fallback for either a timeout or an
+// outright failure (no signal at all). If the network eventually does resolve — even after the
+// timeout already fell back to cache — the cache is still updated for next time, so a slow success
+// isn't wasted.
+async function networkFirstWithTimeout(request, fallbackUrl) {
+  const cache = await caches.open(CACHE_VERSION);
+
+  const networkPromise = fetch(request).then((response) => {
+    if (response && response.ok) cache.put(request, response.clone());
+    return response;
+  });
+  // Don't let an eventual rejection from the race loser become an unhandled rejection.
+  networkPromise.catch(() => {});
+
+  try {
+    return await Promise.race([networkPromise, timeout(NETWORK_TIMEOUT_MS)]);
+  } catch {
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    if (fallbackUrl) {
+      const fallback = await cache.match(fallbackUrl);
+      if (fallback) return fallback;
+    }
+    // Nothing cached and the network hasn't answered yet — let the original network request keep
+    // running and resolve with whatever it eventually returns (or throws), rather than hanging the
+    // page on a fallback that doesn't exist. This only happens on a page that's never loaded before
+    // on this device.
+    return networkPromise;
+  }
+}
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;
@@ -45,21 +93,10 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Page navigations: network-first, fall back to a cached copy, then the offline page.
-  if (request.mode === "navigate") {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          caches.open(CACHE_VERSION).then((cache) => cache.put(request, response.clone()));
-          return response;
-        })
-        .catch(async () => {
-          const cache = await caches.open(CACHE_VERSION);
-          const cached = await cache.match(request);
-          return cached || cache.match("/offline.html");
-        })
-    );
-  }
+  // Everything else same-origin (full page loads AND the fetch requests Next.js makes for in-app
+  // Link navigation, which is how most time in an installed PWA is actually spent) — race the
+  // network against a timeout, fall back to a cached copy or the offline page.
+  event.respondWith(networkFirstWithTimeout(request, request.mode === "navigate" ? "/offline.html" : null));
 });
 
 self.addEventListener("push", (event) => {

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import { errorMessage } from "@/lib/errors";
+import { enqueueWrite, isNetworkError } from "@/lib/offlineQueue";
 
 export default function EnvLogForm({ orgId, batchId, onDone }: { orgId: string; batchId?: string; onDone: () => void }) {
   const supabase = createClient();
@@ -17,31 +18,51 @@ export default function EnvLogForm({ orgId, batchId, onDone }: { orgId: string; 
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [queued, setQueued] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     setError(null);
+    const payload = {
+      org_id: orgId,
+      batch_id: batchId || null,
+      log_date: date,
+      temperature_f: temp ? Number(temp) : null,
+      humidity_pct: humidity ? Number(humidity) : null,
+      vpd_kpa: vpd ? Number(vpd) : null,
+      light_schedule_hours: lightHours ? Number(lightHours) : null,
+      notes: notes || null,
+    };
     try {
       if (DEMO_MODE) { onDone(); return; }
-      const { error } = await supabase.from("environmental_logs").insert({
-        org_id: orgId,
-        batch_id: batchId || null,
-        log_date: date,
-        temperature_f: temp ? Number(temp) : null,
-        humidity_pct: humidity ? Number(humidity) : null,
-        vpd_kpa: vpd ? Number(vpd) : null,
-        light_schedule_hours: lightHours ? Number(lightHours) : null,
-        notes: notes || null,
-      });
+      const { error } = await supabase.from("environmental_logs").insert(payload);
       if (error) throw error;
       onDone();
       router.refresh();
     } catch (err) {
+      // This form is what the QR "quick log" batch page (see app/(app)/batches/[id]/quick) opens
+      // straight into — exactly the kind of spot-in-the-greenhouse-with-bad-signal moment this
+      // queue exists for. Same pattern as Harvest/Grazing/Health log: save it locally, upload once
+      // back online, rather than losing the reading.
+      if (isNetworkError(err)) {
+        enqueueWrite({ table: "environmental_logs", op: "insert", payload, label: `Environment reading — ${date}` });
+        setQueued(true);
+        setTimeout(onDone, 1200);
+        return;
+      }
       setError(errorMessage(err, "Could not save log"));
     } finally {
       setSaving(false);
     }
+  }
+
+  if (queued) {
+    return (
+      <div className="card p-4 mb-4 text-sm text-emerald-700 font-medium">
+        Saved locally — will upload when you're back online.
+      </div>
+    );
   }
 
   return (
