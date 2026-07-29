@@ -8,6 +8,8 @@ import FieldForm from "@/components/forms/FieldForm";
 import PlantingForm from "@/components/forms/PlantingForm";
 import SoilTestForm from "@/components/forms/SoilTestForm";
 import FrostAlertBanner from "@/components/FrostAlertBanner";
+import OfflineDataBanner from "@/components/OfflineDataBanner";
+import { useLocalFirstList } from "@/lib/useLocalFirstList";
 import { acresToPreferred, areaUnitLabel, defaultAreaUnit } from "@/lib/units";
 
 type Field = {
@@ -30,8 +32,9 @@ type FieldDetail = {
 };
 
 export default function FieldsClient({
-  orgId, role, fields, crops, areaUnit,
+  orgId, role, fields: serverFields, crops, areaUnit,
 }: { orgId: string; role: string; fields: Field[]; crops: Crop[]; areaUnit?: string }) {
+  const { rows: fields, usingCache, cachedAt } = useLocalFirstList("fields", orgId, serverFields);
   const supabase = createClient();
   const isEditor = role === "owner" || role === "admin" || role === "member";
   const [showFieldForm, setShowFieldForm] = useState(false);
@@ -82,6 +85,7 @@ export default function FieldsClient({
   if (fields.length === 0 && !showFieldForm) {
     return (
       <div className="space-y-4">
+        <OfflineDataBanner usingCache={usingCache} cachedAt={cachedAt} />
         <EmptyState
           title="No fields yet"
           hint="Add a field to start tracking plantings, soil tests, and crop rotation for row crops, high tunnels, or commercial ground."
@@ -97,6 +101,7 @@ export default function FieldsClient({
 
   return (
     <div className="space-y-4">
+      <OfflineDataBanner usingCache={usingCache} cachedAt={cachedAt} />
       <FrostAlertBanner fields={fields} />
       {isEditor && (
         showFieldForm

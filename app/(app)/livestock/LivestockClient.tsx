@@ -65,6 +65,7 @@ export default function LivestockClient({
   // they load, fall back to the cache (labeled via OfflineDataBanner) if the server hands down
   // nothing while offline.
   const { rows: animals, usingCache, cachedAt } = useLocalFirstList("animals", orgId, serverAnimals);
+  const { rows: grazingEventRows } = useLocalFirstList("grazing_events", orgId, grazingEvents ?? []);
   const [showAnimalForm, setShowAnimalForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -136,11 +137,11 @@ export default function LivestockClient({
         </div>
       )}
       <div className="px-5 py-3">
-        {!grazingEvents || grazingEvents.length === 0 ? (
+        {grazingEventRows.length === 0 ? (
           <p className="text-xs text-stone-400">No grazing history logged yet.</p>
         ) : (
           <div className="divide-y divide-stone-100">
-            {grazingEvents.map((g) => (
+            {grazingEventRows.map((g) => (
               <div key={g.id} className="py-2 text-sm text-stone-600">
                 <span className="font-medium text-stone-700">{fieldName(g.field_id)}</span>
                 {rowLabel(g.field_id, g.row_id) && <span> · {rowLabel(g.field_id, g.row_id)}</span>}

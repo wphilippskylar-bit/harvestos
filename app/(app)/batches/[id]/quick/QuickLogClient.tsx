@@ -4,14 +4,22 @@ import { useState } from "react";
 import Link from "next/link";
 import { StatusBadge } from "@/components/ui";
 import EnvLogForm from "@/components/forms/EnvLogForm";
+import OfflineDataBanner from "@/components/OfflineDataBanner";
+import { useLocalFirstList } from "@/lib/useLocalFirstList";
 
 export default function QuickLogClient({
-  orgId, batch, logs,
+  orgId, batch, logs: serverLogs,
 }: { orgId: string; batch: any; logs: any[] }) {
   const [showForm, setShowForm] = useState(true); // scanning a tag means "I'm here to log something" — skip the extra tap
+  // This is exactly the "standing in the greenhouse, bad signal" moment the offline plan is about
+  // — read-through cache is scoped to org-wide environmental_logs, then filtered down to this
+  // batch for display, same as the server-side query already does.
+  const { rows: allLogs, usingCache, cachedAt } = useLocalFirstList("environmental_logs", orgId, serverLogs);
+  const logs = allLogs.filter((l: any) => l.batch_id === batch.id);
 
   return (
     <div className="max-w-lg mx-auto space-y-4">
+      <OfflineDataBanner usingCache={usingCache} cachedAt={cachedAt} />
       <div>
         <Link href="/batches" className="text-xs text-stone-400 hover:underline">&larr; All batches</Link>
         <div className="flex items-center justify-between mt-1">
