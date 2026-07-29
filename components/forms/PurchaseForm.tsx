@@ -54,12 +54,12 @@ export default function PurchaseForm({
   // farm_supplies/equipment_assets/animals row, since safely reconciling those side-effects on
   // every field change is a lot riskier than just not touching them.
   const [mode, setMode] = useState<"purchase" | "supply" | "equipment" | "livestock">("purchase");
-  // "Purchase" and the old separate "Seed purchase" tab are the same mode now — this toggle just
-  // reveals the crop/weight fields and forces the category to Seeds, instead of making someone
-  // pick a whole different tab for what's otherwise an identical form.
-  const [isSeed, setIsSeed] = useState(!!(existingPurchase?.crop_id && existingPurchase?.seed_weight_g));
   const [item, setItem] = useState(existingPurchase?.item ?? "");
   const [category, setCategory] = useState(existingPurchase?.category ?? "Seeds");
+  // "Purchase" and the old separate "Seed purchase" tab are the same mode now — picking "Seeds" in
+  // the Category dropdown below is what reveals the crop/weight fields, rather than a separate
+  // checkbox duplicating what the dropdown already says.
+  const isSeed = mode === "purchase" && category === "Seeds";
   const [date, setDate] = useState(existingPurchase?.purchase_date ?? new Date().toISOString().slice(0, 10));
   const [amountQty, setAmountQty] = useState(existingPurchase?.amount_qty ?? "");
   const [vendor, setVendor] = useState(existingPurchase?.vendor ?? "");
@@ -108,12 +108,11 @@ export default function PurchaseForm({
     }
   }
 
-  function toggleSeed(next: boolean) {
-    setIsSeed(next);
+  function handleCategoryChange(next: string) {
+    setCategory(next);
     setError(null);
-    if (next) {
+    if (next === "Seeds") {
       const crop = crops.find((c) => c.id === cropId) ?? crops[0];
-      setCategory("Seeds");
       if (crop && !item) setItem(`${crop.name} seed`);
     }
   }
@@ -269,14 +268,7 @@ export default function PurchaseForm({
           ))}
         </div>
       )}
-      {(mode === "purchase") && !existingPurchase?.supply_id && !existingPurchase?.animal_id && category !== "Equipment" && (
-        <label className="flex items-center gap-1.5 text-sm text-stone-600">
-          <input type="checkbox" checked={isSeed} onChange={(e) => toggleSeed(e.target.checked)} />
-          This is a seed purchase
-        </label>
-      )}
-
-      {isSeed && mode === "purchase" && (
+      {isSeed && (
         <p className="text-xs text-stone-400 -mt-2">
           Adds straight to that crop&apos;s seed inventory (grams on hand) as soon as you save.
         </p>
@@ -301,7 +293,7 @@ export default function PurchaseForm({
       )}
 
       <div className="grid sm:grid-cols-3 gap-4">
-        {isSeed && mode === "purchase" && (
+        {isSeed && (
           <>
             <div>
               <label className="label">Crop</label>
@@ -459,8 +451,8 @@ export default function PurchaseForm({
           <select
             className="input"
             value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            disabled={isSeed || mode === "supply" || mode === "equipment" || mode === "livestock"}
+            onChange={(e) => handleCategoryChange(e.target.value)}
+            disabled={mode === "supply" || mode === "equipment" || mode === "livestock"}
           >
             {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
           </select>
