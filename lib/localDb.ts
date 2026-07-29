@@ -28,6 +28,14 @@ export type CachedHealthLog = Cached<Record<string, any>>;
 export type CachedGrazingEvent = Cached<Record<string, any>>;
 export type CachedEnvLog = Cached<Record<string, any>>;
 export type CachedField = Cached<Record<string, any>>;
+export type CachedPurchase = Cached<Record<string, any>>;
+export type CachedSale = Cached<Record<string, any>>;
+export type CachedSalesChannel = Cached<Record<string, any>>;
+export type CachedCrop = Cached<Record<string, any>>;
+export type CachedGoal = Cached<Record<string, any>>;
+export type CachedCropInventory = Cached<Record<string, any>>;
+export type CachedMarketWatchlist = Cached<Record<string, any>>;
+export type CachedMonthlyPnl = Cached<Record<string, any>>;
 
 class HarvestLocalDB extends Dexie {
   batches!: Table<CachedBatch, string>;
@@ -36,6 +44,14 @@ class HarvestLocalDB extends Dexie {
   grazing_events!: Table<CachedGrazingEvent, string>;
   environmental_logs!: Table<CachedEnvLog, string>;
   fields!: Table<CachedField, string>;
+  purchases!: Table<CachedPurchase, string>;
+  sales!: Table<CachedSale, string>;
+  sales_channels!: Table<CachedSalesChannel, string>;
+  crops!: Table<CachedCrop, string>;
+  goals!: Table<CachedGoal, string>;
+  crop_inventory!: Table<CachedCropInventory, string>;
+  market_watchlist!: Table<CachedMarketWatchlist, string>;
+  monthly_pnl!: Table<CachedMonthlyPnl, string>;
 
   constructor() {
     super("harvestos-local");
@@ -49,6 +65,29 @@ class HarvestLocalDB extends Dexie {
       grazing_events: "id, org_id, field_id",
       environmental_logs: "id, org_id, batch_id",
       fields: "id, org_id",
+    });
+    // Version 2: added for the Dashboard local-first conversion — the Dashboard aggregates several
+    // more tables than any other page. Dexie requires additive versioning like this (a new
+    // .version().stores() call covering the full schema going forward) rather than editing
+    // version(1) in place, so existing users' IndexedDB upgrades cleanly instead of losing data.
+    this.version(2).stores({
+      batches: "id, org_id, status",
+      animals: "id, org_id, status",
+      animal_health_logs: "id, org_id, animal_id",
+      grazing_events: "id, org_id, field_id",
+      environmental_logs: "id, org_id, batch_id",
+      fields: "id, org_id",
+      purchases: "id, org_id",
+      sales: "id, org_id",
+      sales_channels: "id, org_id",
+      crops: "id, org_id",
+      goals: "id, org_id",
+      crop_inventory: "id, org_id",
+      market_watchlist: "id, org_id",
+      // monthly_pnl rows come from a Postgres view, not a real table — it may not have a stable
+      // "id" column the way the others do, so it's keyed on month instead, which the view does
+      // always return and which is naturally unique per org.
+      monthly_pnl: "month, org_id",
     });
   }
 }
@@ -68,7 +107,10 @@ function getDb(): HarvestLocalDB | null {
   }
 }
 
-const TABLES = ["batches", "animals", "animal_health_logs", "grazing_events", "environmental_logs", "fields"] as const;
+const TABLES = [
+  "batches", "animals", "animal_health_logs", "grazing_events", "environmental_logs", "fields",
+  "purchases", "sales", "sales_channels", "crops", "goals", "crop_inventory", "market_watchlist", "monthly_pnl",
+] as const;
 export type CachedTable = (typeof TABLES)[number];
 
 // Call this whenever a page or form successfully loads rows from Supabase — writes them into the
