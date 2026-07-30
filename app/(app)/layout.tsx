@@ -3,6 +3,7 @@ import Nav from "@/components/Nav";
 import SignOutButton from "@/components/SignOutButton";
 import OfflineSyncBanner from "@/components/OfflineSyncBanner";
 import CacheWarmer from "@/components/CacheWarmer";
+import OrgContextStamper from "@/components/OrgContextStamper";
 import { getOrgContext, getNavOrder } from "@/lib/data";
 import { DEMO_MODE } from "@/lib/demo-mode";
 
@@ -50,6 +51,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </main>
       <OfflineSyncBanner />
       <CacheWarmer />
+      <OrgContextStamper ctx={ctx} />
     </div>
   );
 }

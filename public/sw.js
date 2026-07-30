@@ -14,7 +14,7 @@
 // successfully at least once, this file is what makes every visit after that resilient to a bad
 // or missing connection.
 
-const CACHE_VERSION = "harvestos-1785327578213";
+const CACHE_VERSION = "harvestos-1785437669485";
 const APP_SHELL = ["/offline.html", "/manifest.json", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 // How long to wait for the network before falling back to a cached copy. Tuned for "one bar of
@@ -58,7 +58,15 @@ async function networkFirstWithTimeout(request, fallbackUrl) {
   try {
     return await Promise.race([networkPromise, timeout(NETWORK_TIMEOUT_MS)]);
   } catch {
-    const cached = await cache.match(request);
+    // Exact-URL match first, then fall back to ignoring the query string. This matters a lot for
+    // Next.js's client-side/RSC navigation fetches: they carry a `_rsc=<hash>` cache-busting query
+    // param that can differ between visits to the exact same page, so a strict URL match against
+    // what got cached last time can miss even though the page itself was cached moments ago. That
+    // was silently defeating the whole point of racing the network for in-app navigation — on a
+    // slow (not fully dead) connection, this fell through to just waiting on the slow request
+    // anyway, which is exactly the "won't load on poor signal" symptom this file exists to fix.
+    let cached = await cache.match(request);
+    if (!cached) cached = await cache.match(request, { ignoreSearch: true });
     if (cached) return cached;
     if (fallbackUrl) {
       const fallback = await cache.match(fallbackUrl);
