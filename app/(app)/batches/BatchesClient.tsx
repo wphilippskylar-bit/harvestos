@@ -9,7 +9,8 @@ import BatchForm from "@/components/forms/BatchForm";
 import HarvestForm from "@/components/forms/HarvestForm";
 import BatchQrCode from "@/components/BatchQrCode";
 import OfflineDataBanner from "@/components/OfflineDataBanner";
-import { useLocalFirstList } from "@/lib/useLocalFirstList";
+import { useLiveCachedTable } from "@/lib/useLiveCachedTable";
+import { useOnlineStatus } from "@/lib/useOnlineStatus";
 
 const STATUSES = ["germinating", "growing", "harvested", "sold_out", "composted"];
 const ACTIVE_STATUSES = ["germinating", "growing"];
@@ -23,10 +24,12 @@ const TABS = [
 export default function BatchesClient({
   orgId, batches: serverBatches, crops, inventory, weightUnit,
 }: { orgId: string; batches: any[]; crops: any[]; inventory: any[]; weightUnit?: string }) {
-  // See lib/useLocalFirstList.ts — mirrors batches into the local cache as they load, and falls
-  // back to that cache (clearly labeled, via OfflineDataBanner) if the server ever hands down an
-  // empty list while offline instead of silently showing "no batches yet."
-  const { rows: batches, usingCache, cachedAt } = useLocalFirstList("batches", orgId, serverBatches);
+  // Phase 2 of the local-first rewrite (see HarvestOS_Local_First_Rewrite_Plan.md) — this page now
+  // renders straight from Dexie (via useLiveCachedTable), kept warm in the background by the sync
+  // engine (lib/syncEngine.ts) and updated live the instant a write lands, rather than waiting on
+  // this page's own server round trip or needing a manual refresh to see a change.
+  const batches = useLiveCachedTable("batches", orgId, serverBatches);
+  const isOffline = useOnlineStatus();
   const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("current");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -58,7 +61,7 @@ export default function BatchesClient({
 
   return (
     <div>
-      <OfflineDataBanner usingCache={usingCache} cachedAt={cachedAt} />
+      <OfflineDataBanner usingCache={isOffline} cachedAt={null} />
       <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
         <div className="flex rounded-lg bg-stone-100 p-1 text-sm font-medium">
           {TABS.map((t) => (

@@ -20,6 +20,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "dexie": "^4.4.4",
+    "dexie-react-hooks": "^4.4.0",
     "leaflet": "^1.9.4",
     "next": "14.2.35",
     "papaparse": "^5.5.4",

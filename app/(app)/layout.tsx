@@ -4,6 +4,7 @@ import SignOutButton from "@/components/SignOutButton";
 import OfflineSyncBanner from "@/components/OfflineSyncBanner";
 import CacheWarmer from "@/components/CacheWarmer";
 import OrgContextStamper from "@/components/OrgContextStamper";
+import SyncEngine from "@/components/SyncEngine";
 import { getOrgContext, getNavOrder } from "@/lib/data";
 import { DEMO_MODE } from "@/lib/demo-mode";
 
@@ -52,6 +53,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <OfflineSyncBanner />
       <CacheWarmer />
       <OrgContextStamper ctx={ctx} />
+      {!DEMO_MODE && <SyncEngine orgId={ctx.orgId} />}
     </div>
   );
 }
