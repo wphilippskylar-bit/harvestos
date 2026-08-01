@@ -8,9 +8,12 @@ import { EmptyState, fmtCurrency2 } from "@/components/ui";
 import PurchaseForm from "@/components/forms/PurchaseForm";
 import EquipmentSection from "@/components/EquipmentSection";
 import FarmSuppliesSection from "@/components/FarmSuppliesSection";
+import OfflineDataBanner from "@/components/OfflineDataBanner";
+import { useLiveCachedTable } from "@/lib/useLiveCachedTable";
+import { useOnlineStatus } from "@/lib/useOnlineStatus";
 
 export default function PurchasesClient({
-  orgId, purchases, crops, fields = [], supplies = [], equipmentSupplies = [], animals = [], equipment = [], isEditor = false,
+  orgId, purchases: serverPurchases, crops, fields = [], supplies = [], equipmentSupplies = [], animals = [], equipment = [], isEditor = false,
 }: {
   orgId: string;
   purchases: any[];
@@ -27,6 +30,10 @@ export default function PurchasesClient({
   const topRef = useRef<HTMLDivElement>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  // Phase 3 of the local-first rewrite (see HarvestOS_Local_First_Rewrite_Plan.md) — same pattern
+  // as the Phase 2 field-critical pages, extended to Purchases.
+  const purchases = useLiveCachedTable("purchases", orgId, serverPurchases);
+  const isOffline = useOnlineStatus();
   const total = purchases.reduce((a, p) => a + (p.total ?? 0), 0);
   const editingPurchase = purchases.find((p) => p.id === editingId);
 
@@ -45,7 +52,10 @@ export default function PurchasesClient({
 
   return (
     <div className="space-y-4">
-      <div ref={topRef} className="flex justify-between items-center">
+      <div ref={topRef}>
+        <OfflineDataBanner usingCache={isOffline} cachedAt={null} />
+      </div>
+      <div className="flex justify-between items-center">
         <div className="text-sm text-stone-500">Total spend: <span className="font-semibold text-stone-800">{fmtCurrency2(total)}</span></div>
         {!showForm && !editingId && <button className="btn-primary" onClick={() => setShowForm(true)}>+ Add purchase</button>}
       </div>

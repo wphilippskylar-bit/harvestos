@@ -3,17 +3,24 @@
 import { useState } from "react";
 import { EmptyState, fmtCurrency2 } from "@/components/ui";
 import SaleForm from "@/components/forms/SaleForm";
+import OfflineDataBanner from "@/components/OfflineDataBanner";
+import { useLiveCachedTable } from "@/lib/useLiveCachedTable";
+import { useOnlineStatus } from "@/lib/useOnlineStatus";
 
 export default function SalesClient({
-  orgId, sales, channels, crops, fields = [], animals = [],
+  orgId, sales: serverSales, channels, crops, fields = [], animals = [],
 }: { orgId: string; sales: any[]; channels: any[]; crops: any[]; fields?: any[]; animals?: any[] }) {
   const [showForm, setShowForm] = useState(false);
+  // Phase 3 of the local-first rewrite (see HarvestOS_Local_First_Rewrite_Plan.md).
+  const sales = useLiveCachedTable("sales", orgId, serverSales);
+  const isOffline = useOnlineStatus();
   const total = sales.reduce((a, s) => a + (s.total_revenue ?? s.quantity * s.unit_price), 0);
   const channelMap = Object.fromEntries(channels.map((c) => [c.id, c.name]));
   const cropMap = Object.fromEntries(crops.map((c) => [c.id, c.name]));
 
   return (
     <div>
+      <OfflineDataBanner usingCache={isOffline} cachedAt={null} />
       <div className="flex justify-between items-center mb-4">
         <div className="text-sm text-stone-500">Total revenue: <span className="font-semibold text-stone-800">{fmtCurrency2(total)}</span></div>
         {!showForm && <button className="btn-primary" onClick={() => setShowForm(true)}>+ Log sale</button>}

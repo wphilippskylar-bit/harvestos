@@ -7,6 +7,9 @@ import { DEMO_MODE } from "@/lib/demo-mode";
 import { EmptyState } from "@/components/ui";
 import InventoryAdjustForm from "@/components/forms/InventoryAdjustForm";
 import FarmSuppliesSection from "@/components/FarmSuppliesSection";
+import OfflineDataBanner from "@/components/OfflineDataBanner";
+import { useLiveCachedTable } from "@/lib/useLiveCachedTable";
+import { useOnlineStatus } from "@/lib/useOnlineStatus";
 
 type InventoryRow = {
   crop_id: string;
@@ -19,10 +22,15 @@ type InventoryRow = {
 };
 
 export default function InventoryClient({
-  orgId, inventory, role, supplies = [],
+  orgId, inventory: serverInventory, role, supplies = [],
 }: { orgId: string; inventory: InventoryRow[]; role: string; supplies?: any[] }) {
   const supabase = createClient();
   const router = useRouter();
+  // Phase 3 of the local-first rewrite (see HarvestOS_Local_First_Rewrite_Plan.md). crop_inventory
+  // is keyed by crop_id, not id — see lib/localDb.ts's version 4 note, which fixed a real bug where
+  // this table's rows silently never got cached under the old (wrong) key schema.
+  const inventory = useLiveCachedTable<InventoryRow>("crop_inventory", orgId, serverInventory);
+  const isOffline = useOnlineStatus();
   const canEdit = role === "owner" || role === "admin";
   const [thresholds, setThresholds] = useState<Record<string, string>>(
     Object.fromEntries(inventory.map((i) => [i.crop_id, i.low_stock_threshold_trays?.toString() ?? ""]))
@@ -98,6 +106,7 @@ export default function InventoryClient({
   if (inventory.length === 0) {
     return (
       <div className="space-y-4">
+        <OfflineDataBanner usingCache={isOffline} cachedAt={null} />
         <EmptyState title="No crop inventory yet" hint="Inventory fills in automatically as you log seed purchases, start batches, and log harvests." />
         {suppliesSection}
       </div>
@@ -106,6 +115,7 @@ export default function InventoryClient({
 
   return (
     <div className="space-y-4">
+      <OfflineDataBanner usingCache={isOffline} cachedAt={null} />
       <div className="flex justify-end">
         <button className="btn-secondary !py-1.5 text-sm" onClick={exportMovementsCsv} disabled={exporting}>
           {exporting ? "Exporting…" : "Export movements CSV"}

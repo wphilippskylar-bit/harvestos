@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import ChannelForm from "@/components/forms/ChannelForm";
+import OfflineDataBanner from "@/components/OfflineDataBanner";
+import { useLiveCachedTable } from "@/lib/useLiveCachedTable";
+import { useOnlineStatus } from "@/lib/useOnlineStatus";
 
 const COLUMNS = [
   { key: "untried", label: "Untried", hint: "Haven't reached out yet", color: "border-stone-300" },
@@ -13,9 +16,18 @@ const COLUMNS = [
   { key: "active", label: "Active", hint: "Successfully obtained — buying now", color: "border-emerald-300" },
 ] as const;
 
-export default function ChannelsClient({ orgId, channels }: { orgId: string; channels: any[] }) {
+export default function ChannelsClient({ orgId, channels: serverChannels }: { orgId: string; channels: any[] }) {
   const [showForm, setShowForm] = useState(false);
-  const [items, setItems] = useState(channels);
+  // Phase 3 of the local-first rewrite (see HarvestOS_Local_First_Rewrite_Plan.md). `items` stays
+  // its own state (not read directly off the live hook) because this board does optimistic
+  // drag-style status moves — moveTo() below updates it immediately, before the write round-trips.
+  // It re-syncs to the canonical live Dexie value whenever that changes (a background sync pull, a
+  // write landing from this or another device), so an optimistic update never permanently drifts
+  // from the truth if the actual write fails or a change comes in from elsewhere.
+  const liveChannels = useLiveCachedTable("sales_channels", orgId, serverChannels);
+  const isOffline = useOnlineStatus();
+  const [items, setItems] = useState(liveChannels);
+  useEffect(() => { setItems(liveChannels); }, [liveChannels]);
   const supabase = createClient();
   const router = useRouter();
 
@@ -28,6 +40,7 @@ export default function ChannelsClient({ orgId, channels }: { orgId: string; cha
 
   return (
     <div>
+      <OfflineDataBanner usingCache={isOffline} cachedAt={null} />
       <div className="flex justify-end mb-4">
         {!showForm && <button className="btn-primary" onClick={() => setShowForm(true)}>+ Add channel</button>}
       </div>

@@ -6,14 +6,21 @@ import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import { EmptyState } from "@/components/ui";
 import CropForm from "@/components/forms/CropForm";
+import OfflineDataBanner from "@/components/OfflineDataBanner";
+import { useLiveCachedTable } from "@/lib/useLiveCachedTable";
+import { useOnlineStatus } from "@/lib/useOnlineStatus";
 
 export default function CropsClient({
-  orgId, crops, inventory, role, weightUnit,
+  orgId, crops: serverCrops, inventory: serverInventory, role, weightUnit,
 }: { orgId: string; crops: any[]; inventory: any[]; role: string; weightUnit?: string }) {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const supabase = createClient();
   const router = useRouter();
+  // Phase 3 of the local-first rewrite (see HarvestOS_Local_First_Rewrite_Plan.md).
+  const crops = useLiveCachedTable("crops", orgId, serverCrops);
+  const inventory = useLiveCachedTable("crop_inventory", orgId, serverInventory);
+  const isOffline = useOnlineStatus();
 
   const canEdit = role === "owner" || role === "admin";
   const canDelete = role === "owner";
@@ -28,6 +35,7 @@ export default function CropsClient({
 
   return (
     <div>
+      <OfflineDataBanner usingCache={isOffline} cachedAt={null} />
       <div className="flex justify-end mb-4">
         {!showForm && <button className="btn-primary" onClick={() => { setShowForm(true); setEditingId(null); }}>+ Add crop</button>}
       </div>

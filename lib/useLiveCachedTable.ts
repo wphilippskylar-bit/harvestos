@@ -16,7 +16,10 @@ import { cacheRows, getCachedRows, type CachedTable } from "@/lib/localDb";
 // into Dexie — same as before, it counts as the freshest read available. The difference is
 // rendering never *waits* on that round trip: Dexie already has whatever the last successful sync
 // left there, so there's always something to show immediately.
-export function useLiveCachedTable<T extends { id: string }>(
+// Not constrained to `{ id: string }` — most cached tables are keyed by id, but crop_inventory is
+// keyed by crop_id instead (see lib/localDb.ts's version 4 note), so this stays generic over
+// whatever shape a given table's rows actually have.
+export function useLiveCachedTable<T>(
   table: CachedTable,
   orgId: string,
   serverRows?: T[]

@@ -89,6 +89,35 @@ class HarvestLocalDB extends Dexie {
       // always return and which is naturally unique per org.
       monthly_pnl: "month, org_id",
     });
+    // Version 3: fixes a real bug in version 2 — crop_inventory rows (from lib/data.ts's
+    // getInventory, which queries the crop_inventory view) come back keyed by crop_id, not id;
+    // that view has no "id" column at all. Version 2 declared "id, org_id" as the key anyway,
+    // which meant every cacheRows() call for this table was silently failing to store anything
+    // (Dexie can't index a field that isn't there). Found while wiring Phase 3 of the local-first
+    // rewrite (Inventory/Crops pages) — Dexie doesn't allow changing a store's primary key within
+    // one version, so this drops the table...
+    this.version(3).stores({
+      crop_inventory: null,
+    });
+    // ...and this recreates it with the correct key. Two-step delete-then-recreate is the pattern
+    // Dexie expects for a primary-key change; harmless here since crop_inventory is a fully
+    // derived/re-fetchable cache, not a source of truth.
+    this.version(4).stores({
+      batches: "id, org_id, status",
+      animals: "id, org_id, status",
+      animal_health_logs: "id, org_id, animal_id",
+      grazing_events: "id, org_id, field_id",
+      environmental_logs: "id, org_id, batch_id",
+      fields: "id, org_id",
+      purchases: "id, org_id",
+      sales: "id, org_id",
+      sales_channels: "id, org_id",
+      crops: "id, org_id",
+      goals: "id, org_id",
+      crop_inventory: "crop_id, org_id",
+      market_watchlist: "id, org_id",
+      monthly_pnl: "month, org_id",
+    });
   }
 }
 
