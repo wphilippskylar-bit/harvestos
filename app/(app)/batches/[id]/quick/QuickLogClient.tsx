@@ -5,7 +5,8 @@ import Link from "next/link";
 import { StatusBadge } from "@/components/ui";
 import EnvLogForm from "@/components/forms/EnvLogForm";
 import OfflineDataBanner from "@/components/OfflineDataBanner";
-import { useLocalFirstList } from "@/lib/useLocalFirstList";
+import { useLiveCachedTable } from "@/lib/useLiveCachedTable";
+import { useOnlineStatus } from "@/lib/useOnlineStatus";
 
 export default function QuickLogClient({
   orgId, batch, logs: serverLogs,
@@ -14,12 +15,13 @@ export default function QuickLogClient({
   // This is exactly the "standing in the greenhouse, bad signal" moment the offline plan is about
   // — read-through cache is scoped to org-wide environmental_logs, then filtered down to this
   // batch for display, same as the server-side query already does.
-  const { rows: allLogs, usingCache, cachedAt } = useLocalFirstList("environmental_logs", orgId, serverLogs);
+  const allLogs = useLiveCachedTable("environmental_logs", orgId, serverLogs);
+  const isOffline = useOnlineStatus();
   const logs = allLogs.filter((l: any) => l.batch_id === batch.id);
 
   return (
     <div className="max-w-lg mx-auto space-y-4">
-      <OfflineDataBanner usingCache={usingCache} cachedAt={cachedAt} />
+      <OfflineDataBanner usingCache={isOffline} cachedAt={null} />
       <div>
         <Link href="/batches" className="text-xs text-stone-400 hover:underline">&larr; All batches</Link>
         <div className="flex items-center justify-between mt-1">

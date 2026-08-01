@@ -10,7 +10,8 @@ import HealthLogForm from "@/components/forms/HealthLogForm";
 import GrazingForm from "@/components/forms/GrazingForm";
 import FarmSuppliesSection from "@/components/FarmSuppliesSection";
 import OfflineDataBanner from "@/components/OfflineDataBanner";
-import { useLocalFirstList } from "@/lib/useLocalFirstList";
+import { useLiveCachedTable } from "@/lib/useLiveCachedTable";
+import { useOnlineStatus } from "@/lib/useOnlineStatus";
 import { cacheRows, getCachedRows } from "@/lib/localDb";
 
 type Animal = {
@@ -61,11 +62,12 @@ export default function LivestockClient({
   const supabase = createClient();
   const router = useRouter();
   const isEditor = role === "owner" || role === "admin" || role === "member";
-  // See lib/useLocalFirstList.ts — same local-first read pattern as Batches: cache animals as
-  // they load, fall back to the cache (labeled via OfflineDataBanner) if the server hands down
-  // nothing while offline.
-  const { rows: animals, usingCache, cachedAt } = useLocalFirstList("animals", orgId, serverAnimals);
-  const { rows: grazingEventRows } = useLocalFirstList("grazing_events", orgId, grazingEvents ?? []);
+  // Phase 2 of the local-first rewrite (see HarvestOS_Local_First_Rewrite_Plan.md) — same pattern
+  // as Batches: renders from Dexie (kept warm by the sync engine + this session's own writes) via
+  // useLiveCachedTable, live-updating with no router.refresh() needed.
+  const animals = useLiveCachedTable("animals", orgId, serverAnimals);
+  const grazingEventRows = useLiveCachedTable("grazing_events", orgId, grazingEvents ?? []);
+  const isOffline = useOnlineStatus();
   const [showAnimalForm, setShowAnimalForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -188,7 +190,7 @@ export default function LivestockClient({
   if (animals.length === 0 && !showAnimalForm) {
     return (
       <div className="space-y-4">
-        <OfflineDataBanner usingCache={usingCache} cachedAt={cachedAt} />
+        <OfflineDataBanner usingCache={isOffline} cachedAt={null} />
         <EmptyState
           title="No animals yet"
           hint="Add an animal to start tracking health treatments and withdrawal periods."
@@ -207,7 +209,7 @@ export default function LivestockClient({
 
   return (
     <div className="space-y-4">
-      <OfflineDataBanner usingCache={usingCache} cachedAt={cachedAt} />
+      <OfflineDataBanner usingCache={isOffline} cachedAt={null} />
       {herdSection}
       {isEditor && (
         showAnimalForm

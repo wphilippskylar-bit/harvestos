@@ -4,14 +4,16 @@ import { useState } from "react";
 import { EmptyState } from "@/components/ui";
 import EnvLogForm from "@/components/forms/EnvLogForm";
 import OfflineDataBanner from "@/components/OfflineDataBanner";
-import { useLocalFirstList } from "@/lib/useLocalFirstList";
+import { useLiveCachedTable } from "@/lib/useLiveCachedTable";
+import { useOnlineStatus } from "@/lib/useOnlineStatus";
 
 export default function EnvClient({ orgId, logs: serverLogs }: { orgId: string; logs: any[] }) {
-  const { rows: logs, usingCache, cachedAt } = useLocalFirstList("environmental_logs", orgId, serverLogs);
+  const logs = useLiveCachedTable("environmental_logs", orgId, serverLogs);
+  const isOffline = useOnlineStatus();
   const [showForm, setShowForm] = useState(false);
   return (
     <div>
-      <OfflineDataBanner usingCache={usingCache} cachedAt={cachedAt} />
+      <OfflineDataBanner usingCache={isOffline} cachedAt={null} />
       <div className="flex justify-end mb-4">
         {!showForm && <button className="btn-primary" onClick={() => setShowForm(true)}>+ Add reading</button>}
       </div>
