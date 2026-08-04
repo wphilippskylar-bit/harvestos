@@ -6,13 +6,21 @@ import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import { EmptyState } from "@/components/ui";
 import SopForm from "@/components/forms/SopForm";
+import OfflineDataBanner from "@/components/OfflineDataBanner";
+import { useLiveCachedTable } from "@/lib/useLiveCachedTable";
+import { useOnlineStatus } from "@/lib/useOnlineStatus";
 
 type Sop = { id: string; title: string; category: string | null; content: string; updated_at: string };
 
-export default function SopsClient({ orgId, role, sops }: { orgId: string; role: string; sops: Sop[] }) {
+export default function SopsClient({ orgId, role, sops: serverSops }: { orgId: string; role: string; sops: Sop[] }) {
   const supabase = createClient();
   const router = useRouter();
   const isEditor = role === "owner" || role === "admin" || role === "member";
+  // Phase 5 of the local-first rewrite (see HarvestOS_Local_First_Rewrite_Plan.md) — SOPs are
+  // exactly the kind of thing worth having offline (step-by-step instructions someone might need
+  // to check mid-task, out in a field or barn with no signal).
+  const sops = useLiveCachedTable<Sop>("sops", orgId, serverSops);
+  const isOffline = useOnlineStatus();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -31,6 +39,7 @@ export default function SopsClient({ orgId, role, sops }: { orgId: string; role:
   if (sops.length === 0 && !showForm) {
     return (
       <div className="space-y-4">
+        <OfflineDataBanner usingCache={isOffline} cachedAt={null} />
         <EmptyState
           title="No SOPs yet"
           hint="Write down how you do things — sanitizing, harvest steps, onboarding a new hire — so it's not just in your head."
@@ -46,6 +55,7 @@ export default function SopsClient({ orgId, role, sops }: { orgId: string; role:
 
   return (
     <div className="space-y-4">
+      <OfflineDataBanner usingCache={isOffline} cachedAt={null} />
       {isEditor && (
         showForm
           ? <SopForm orgId={orgId} onDone={() => setShowForm(false)} />

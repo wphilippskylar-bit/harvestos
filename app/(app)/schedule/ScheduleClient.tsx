@@ -6,6 +6,9 @@ import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import { EmptyState } from "@/components/ui";
 import ScheduleEventForm from "@/components/forms/ScheduleEventForm";
+import OfflineDataBanner from "@/components/OfflineDataBanner";
+import { useLiveCachedTable } from "@/lib/useLiveCachedTable";
+import { useOnlineStatus } from "@/lib/useOnlineStatus";
 
 type Event = {
   id: string;
@@ -38,7 +41,7 @@ function linkedLabel(e: Event): string | null {
 }
 
 export default function ScheduleClient({
-  orgId, role, events, batches = [], fields = [], ceaAreas = [], animals = [],
+  orgId, role, events: serverEvents, batches = [], fields = [], ceaAreas = [], animals = [],
 }: {
   orgId: string;
   role: string;
@@ -51,6 +54,12 @@ export default function ScheduleClient({
   const supabase = createClient();
   const router = useRouter();
   const isEditor = role === "owner" || role === "admin" || role === "member";
+  // Phase 5 of the local-first rewrite (see HarvestOS_Local_First_Rewrite_Plan.md). Only the
+  // events list itself is converted — batches/fields/ceaAreas/animals here are just id/label
+  // lookups for the "link this to..." dropdown on the create-event form, which needs a live
+  // connection to actually save a new event regardless, so they're left as plain server props.
+  const events = useLiveCachedTable<Event>("schedule_events", orgId, serverEvents);
+  const isOffline = useOnlineStatus();
   const [showForm, setShowForm] = useState(false);
   const [typeFilter, setTypeFilter] = useState<string>("all");
 
@@ -108,6 +117,7 @@ export default function ScheduleClient({
 
   return (
     <div className="space-y-4">
+      <OfflineDataBanner usingCache={isOffline} cachedAt={null} />
       {isEditor && (
         showForm
           ? <ScheduleEventForm orgId={orgId} batches={batches} fields={fields} ceaAreas={ceaAreas} animals={animals} onDone={() => setShowForm(false)} />

@@ -4,17 +4,22 @@ import Link from "next/link";
 import { PageHeader, fmtCurrency } from "@/components/ui";
 import DashboardCards from "./DashboardCards";
 import OfflineDataBanner from "@/components/OfflineDataBanner";
-import { useLocalFirstMulti } from "@/lib/useLocalFirstMulti";
+import { useLiveCachedTable } from "@/lib/useLiveCachedTable";
+import { useOnlineStatus } from "@/lib/useOnlineStatus";
 import { computeDashboardData } from "@/lib/dashboardCompute";
 
-// Dashboard local-first conversion (the page deliberately deferred from the rest of the offline
-// plan — see HarvestOS_Offline_LocalFirst_Plan.md). page.tsx still does the real server fetch for
-// the fastest first paint when online; all the aggregation math and the offline-cache fallback
-// live here so the exact same computeDashboardData logic runs whether the inputs came fresh from
-// the server or from the local cache.
+// Phase 5 of the local-first rewrite (see HarvestOS_Local_First_Rewrite_Plan.md) — the Dashboard
+// was deliberately deferred from Phases 2/3 since it reads several tables at once rather than one.
+// Previously used useLocalFirstMulti (fallback-only: Dexie only got read if the server handed down
+// nothing). Now uses the same useLiveCachedTable hook as every other converted page, called once
+// per table — that's fine here even though the set of tables is fixed per call site, same as any
+// other hook. page.tsx still does the real server fetch for the fastest first paint when online;
+// all the aggregation math lives in computeDashboardData so the exact same logic runs regardless
+// of whether the inputs came from a fresh server render or straight from Dexie.
 export default function DashboardClient({
   orgId, orgName,
-  batches, purchases, sales, channels, crops, goals, inventory, marketWatchlist, monthlyPnl,
+  batches: serverBatches, purchases: serverPurchases, sales: serverSales, channels: serverChannels,
+  crops: serverCrops, goals: serverGoals, inventory: serverInventory, marketWatchlist: serverMarketWatchlist, monthlyPnl: serverMonthlyPnl,
   cardOrder, hiddenCards,
 }: {
   orgId: string;
@@ -31,34 +36,25 @@ export default function DashboardClient({
   cardOrder: string[] | null;
   hiddenCards: string[];
 }) {
-  const { data, usingCache, cachedAt } = useLocalFirstMulti([
-    { table: "batches", orgId, serverRows: batches },
-    { table: "purchases", orgId, serverRows: purchases },
-    { table: "sales", orgId, serverRows: sales },
-    { table: "sales_channels", orgId, serverRows: channels },
-    { table: "crops", orgId, serverRows: crops },
-    { table: "goals", orgId, serverRows: goals },
-    { table: "crop_inventory", orgId, serverRows: inventory },
-    { table: "market_watchlist", orgId, serverRows: marketWatchlist },
-    { table: "monthly_pnl", orgId, serverRows: monthlyPnl },
-  ]);
+  const batches = useLiveCachedTable("batches", orgId, serverBatches);
+  const purchases = useLiveCachedTable("purchases", orgId, serverPurchases);
+  const sales = useLiveCachedTable("sales", orgId, serverSales);
+  const channels = useLiveCachedTable("sales_channels", orgId, serverChannels);
+  const crops = useLiveCachedTable("crops", orgId, serverCrops);
+  const goals = useLiveCachedTable("goals", orgId, serverGoals);
+  const inventory = useLiveCachedTable("crop_inventory", orgId, serverInventory);
+  const marketWatchlist = useLiveCachedTable("market_watchlist", orgId, serverMarketWatchlist);
+  const monthlyPnl = useLiveCachedTable("monthly_pnl", orgId, serverMonthlyPnl);
+  const isOffline = useOnlineStatus();
 
   const {
     totalRevenue, totalCost, activeBatches, traysInProduction, lowStockCrops, latestMonth, weeks, cropMarginData, channelCounts,
-  } = computeDashboardData({
-    batches: data.batches ?? [],
-    purchases: data.purchases ?? [],
-    sales: data.sales ?? [],
-    channels: data.sales_channels ?? [],
-    crops: data.crops ?? [],
-    inventory: data.crop_inventory ?? [],
-    monthlyPnl: data.monthly_pnl ?? [],
-  });
+  } = computeDashboardData({ batches, purchases, sales, channels, crops, inventory, monthlyPnl });
 
-  const displayChannels = data.sales_channels ?? [];
-  const displayGoals = (data.goals ?? []) as any[];
-  const displayWatchlist = (data.market_watchlist ?? []) as any[];
-  const displayBatches = (data.batches ?? []) as any[];
+  const displayChannels = channels;
+  const displayGoals = goals as any[];
+  const displayWatchlist = marketWatchlist as any[];
+  const displayBatches = batches as any[];
 
   return (
     <div>
@@ -72,7 +68,7 @@ export default function DashboardClient({
         </Link>
       </div>
 
-      <OfflineDataBanner usingCache={usingCache} cachedAt={cachedAt} />
+      <OfflineDataBanner usingCache={isOffline} cachedAt={null} />
 
       {lowStockCrops.length > 0 && (
         <div className="card p-4 mb-6 border-l-4 border-red-400 bg-red-50/50 flex items-start justify-between gap-4 flex-wrap">

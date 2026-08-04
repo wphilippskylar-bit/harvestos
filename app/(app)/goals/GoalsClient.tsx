@@ -6,12 +6,19 @@ import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import { EmptyState, StatusBadge } from "@/components/ui";
 import GoalForm from "@/components/forms/GoalForm";
+import OfflineDataBanner from "@/components/OfflineDataBanner";
+import { useLiveCachedTable } from "@/lib/useLiveCachedTable";
+import { useOnlineStatus } from "@/lib/useOnlineStatus";
 
-export default function GoalsClient({ orgId, goals }: { orgId: string; goals: any[] }) {
+export default function GoalsClient({ orgId, goals: serverGoals }: { orgId: string; goals: any[] }) {
   const [showForm, setShowForm] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const supabase = createClient();
   const router = useRouter();
+  // Phase 5 of the local-first rewrite (see HarvestOS_Local_First_Rewrite_Plan.md) — goals was
+  // already synced/Realtime-enabled for the Dashboard's sake, so this page just reads live too.
+  const goals = useLiveCachedTable("goals", orgId, serverGoals);
+  const isOffline = useOnlineStatus();
 
   async function updateProgress(id: string, target: number) {
     const val = Number(drafts[id]);
@@ -24,6 +31,7 @@ export default function GoalsClient({ orgId, goals }: { orgId: string; goals: an
 
   return (
     <div>
+      <OfflineDataBanner usingCache={isOffline} cachedAt={null} />
       <div className="flex justify-end mb-4">
         {!showForm && <button className="btn-primary" onClick={() => setShowForm(true)}>+ Set a goal</button>}
       </div>

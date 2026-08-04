@@ -6,6 +6,9 @@ import { createClient } from "@/lib/supabase/client";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import { errorMessage } from "@/lib/errors";
 import { EmptyState } from "@/components/ui";
+import OfflineDataBanner from "@/components/OfflineDataBanner";
+import { useLiveCachedTable } from "@/lib/useLiveCachedTable";
+import { useOnlineStatus } from "@/lib/useOnlineStatus";
 
 type Report = {
   slug_id: string;
@@ -26,9 +29,15 @@ const QUICK_FILTERS = [
   { label: "Fruits & vegetables", q: "Specialty Crops" }, // USDA's own category name — see route.ts
 ];
 
-export default function MarketClient({ orgId, watchlist, isEditor }: { orgId: string; watchlist: WatchlistItem[]; isEditor: boolean }) {
+export default function MarketClient({ orgId, watchlist: serverWatchlist, isEditor }: { orgId: string; watchlist: WatchlistItem[]; isEditor: boolean }) {
   const supabase = createClient();
   const router = useRouter();
+  // Phase 5 of the local-first rewrite (see HarvestOS_Local_First_Rewrite_Plan.md). Only the
+  // pinned-reports watchlist is DB-backed and cacheable this way — the actual USDA price data
+  // below (reports/rows, fetched via /api/market/*) is a live external feed with no offline story,
+  // same as before this change.
+  const watchlist = useLiveCachedTable("market_watchlist", orgId, serverWatchlist);
+  const isOffline = useOnlineStatus();
   const [query, setQuery] = useState("");
   const [reports, setReports] = useState<Report[]>([]);
   const [searching, setSearching] = useState(false);
@@ -146,6 +155,7 @@ export default function MarketClient({ orgId, watchlist, isEditor }: { orgId: st
 
   return (
     <div className="space-y-4">
+      <OfflineDataBanner usingCache={isOffline} cachedAt={null} />
       {notConfigured && (
         <div className="card p-5 bg-amber-50 border border-amber-200">
           <p className="text-sm text-amber-800">

@@ -10,6 +10,9 @@ import CeaFacilityForm from "@/components/forms/CeaFacilityForm";
 import CeaPlantingForm from "@/components/forms/CeaPlantingForm";
 import CeaEnvLogForm from "@/components/forms/CeaEnvLogForm";
 import { areaUnitLabel, defaultAreaUnit, sqFtToPreferred } from "@/lib/units";
+import OfflineDataBanner from "@/components/OfflineDataBanner";
+import { useLiveCachedTable } from "@/lib/useLiveCachedTable";
+import { useOnlineStatus } from "@/lib/useOnlineStatus";
 
 type Planting = { id: string; status: string; crop_name_snapshot: string | null; planted_date: string; growing_medium?: string | null };
 type Row = { id: string; label: string };
@@ -69,7 +72,7 @@ function daysSince(dateStr: string): number {
 }
 
 export default function CeaClient({
-  orgId, role, areas, crops = [], facilities = [], weightUnit, areaUnit,
+  orgId, role, areas: serverAreas, crops: serverCrops = [], facilities: serverFacilities = [], weightUnit, areaUnit,
 }: {
   orgId: string;
   role: string;
@@ -82,6 +85,17 @@ export default function CeaClient({
   const supabase = createClient();
   const router = useRouter();
   const isEditor = role === "owner" || role === "admin" || role === "member";
+  // Phase 5 of the local-first rewrite (see HarvestOS_Local_First_Rewrite_Plan.md).
+  const areas = useLiveCachedTable<Area>("cea_areas", orgId, serverAreas);
+  const facilities = useLiveCachedTable<Facility>("cea_facilities", orgId, serverFacilities);
+  // crops here is just "crops" filtered to the ones applicable to CEA growing — the shared
+  // "crops" table is already cached/live (Phases 2/3), so this reads that directly instead of
+  // needing its own separate table, same filter lib/data.ts's getCeaCrops applies server-side.
+  const allCrops = useLiveCachedTable<any>("crops", orgId, undefined);
+  const crops = (allCrops.length > 0 ? allCrops : serverCrops).filter(
+    (c: any) => !c.applicable_to || c.applicable_to.includes("cea")
+  );
+  const isOffline = useOnlineStatus();
   const [showAreaForm, setShowAreaForm] = useState(false);
   const [showFacilityForm, setShowFacilityForm] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -117,6 +131,7 @@ export default function CeaClient({
   if (areas.length === 0 && !showAreaForm) {
     return (
       <div className="space-y-4">
+        <OfflineDataBanner usingCache={isOffline} cachedAt={null} />
         <EmptyState
           title="No greenhouse / indoor areas yet"
           hint="Add an area (greenhouse, high tunnel, indoor vertical, hydroponic…) to start tracking plantings and environment readings."
@@ -284,6 +299,7 @@ export default function CeaClient({
 
   return (
     <div className="space-y-6">
+      <OfflineDataBanner usingCache={isOffline} cachedAt={null} />
       {isEditor && (
         <div className="flex justify-end gap-2">
           {facilities.length === 0 && !showFacilityForm && (

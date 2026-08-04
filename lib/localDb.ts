@@ -118,6 +118,50 @@ class HarvestLocalDB extends Dexie {
       market_watchlist: "id, org_id",
       monthly_pnl: "month, org_id",
     });
+    // Version 5: added for Phase 5's pass through the remaining office pages — SOPs is a simple
+    // single-table page (id, org_id key, same shape as everything else), so it's the first of that
+    // batch to get the local-first treatment.
+    this.version(5).stores({
+      batches: "id, org_id, status",
+      animals: "id, org_id, status",
+      animal_health_logs: "id, org_id, animal_id",
+      grazing_events: "id, org_id, field_id",
+      environmental_logs: "id, org_id, batch_id",
+      fields: "id, org_id",
+      purchases: "id, org_id",
+      sales: "id, org_id",
+      sales_channels: "id, org_id",
+      crops: "id, org_id",
+      goals: "id, org_id",
+      crop_inventory: "crop_id, org_id",
+      market_watchlist: "id, org_id",
+      monthly_pnl: "month, org_id",
+      sops: "id, org_id",
+    });
+    // Version 6: Schedule, Labor, and CEA — the three remaining office pages assessed as worth
+    // converting (see HarvestOS_Local_First_Rewrite_Plan.md's Phase 5 notes for the reasoning on
+    // why these three and not Profitability/Compliance/Map/Settings/Admin).
+    this.version(6).stores({
+      batches: "id, org_id, status",
+      animals: "id, org_id, status",
+      animal_health_logs: "id, org_id, animal_id",
+      grazing_events: "id, org_id, field_id",
+      environmental_logs: "id, org_id, batch_id",
+      fields: "id, org_id",
+      purchases: "id, org_id",
+      sales: "id, org_id",
+      sales_channels: "id, org_id",
+      crops: "id, org_id",
+      goals: "id, org_id",
+      crop_inventory: "crop_id, org_id",
+      market_watchlist: "id, org_id",
+      monthly_pnl: "month, org_id",
+      sops: "id, org_id",
+      schedule_events: "id, org_id",
+      labor_entries: "id, org_id",
+      cea_areas: "id, org_id",
+      cea_facilities: "id, org_id",
+    });
   }
 }
 
@@ -139,6 +183,7 @@ function getDb(): HarvestLocalDB | null {
 const TABLES = [
   "batches", "animals", "animal_health_logs", "grazing_events", "environmental_logs", "fields",
   "purchases", "sales", "sales_channels", "crops", "goals", "crop_inventory", "market_watchlist", "monthly_pnl",
+  "sops", "schedule_events", "labor_entries", "cea_areas", "cea_facilities",
 ] as const;
 export type CachedTable = (typeof TABLES)[number];
 

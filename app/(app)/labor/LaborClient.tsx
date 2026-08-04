@@ -3,11 +3,20 @@
 import { useState } from "react";
 import { EmptyState, fmtCurrency2 } from "@/components/ui";
 import LaborForm from "@/components/forms/LaborForm";
+import OfflineDataBanner from "@/components/OfflineDataBanner";
+import { useLiveCachedTable } from "@/lib/useLiveCachedTable";
+import { useOnlineStatus } from "@/lib/useOnlineStatus";
 
 export default function LaborClient({
-  orgId, entries, fields, animals, batches,
+  orgId, entries: serverEntries, fields, animals, batches,
 }: { orgId: string; entries: any[]; fields: any[]; animals: any[]; batches: any[] }) {
   const [showForm, setShowForm] = useState(false);
+  // Phase 5 of the local-first rewrite (see HarvestOS_Local_First_Rewrite_Plan.md). fields/animals/
+  // batches here are just id/name lookup maps for display — already cached tables in their own
+  // right (Phases 2/3), but left as plain server props here since this page only reads a couple of
+  // fields off each, not the full live list.
+  const entries = useLiveCachedTable("labor_entries", orgId, serverEntries);
+  const isOffline = useOnlineStatus();
   const total = entries.reduce((a, e) => a + (e.cost ?? 0), 0);
   const fieldMap = Object.fromEntries(fields.map((f) => [f.id, f.name]));
   const animalMap = Object.fromEntries(animals.map((a) => [a.id, a.ear_tag_number]));
@@ -15,6 +24,7 @@ export default function LaborClient({
 
   return (
     <div>
+      <OfflineDataBanner usingCache={isOffline} cachedAt={null} />
       <div className="flex justify-between items-center mb-4">
         <div className="text-sm text-stone-500">Total labor cost: <span className="font-semibold text-stone-800">{fmtCurrency2(total)}</span></div>
         {!showForm && <button className="btn-primary" onClick={() => setShowForm(true)}>+ Log labor</button>}

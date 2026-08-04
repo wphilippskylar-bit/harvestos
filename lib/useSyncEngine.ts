@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { syncPull } from "@/lib/syncEngine";
 import { flushQueue } from "@/lib/offlineQueue";
+import { startRealtimeSync } from "@/lib/realtimeSync";
 
 // Frequent enough that Dexie doesn't go stale for long during a normal work session, infrequent
 // enough not to hammer a metered/shared connection with a full re-pull every few seconds.
@@ -34,10 +35,17 @@ export function useSyncEngine(orgId: string) {
     function onOnline() { runPull(); }
     window.addEventListener("online", onOnline);
 
+    // Phase 4 — Realtime subscription runs alongside the timer, not instead of it: Realtime covers
+    // "notice a change fast while connected," the timer is the fallback for whatever Realtime
+    // misses (a dropped websocket, a table that isn't Realtime-enabled yet, this tab having been
+    // asleep/backgrounded when a change happened).
+    const stopRealtime = startRealtimeSync(orgId);
+
     return () => {
       cancelled = true;
       clearInterval(interval);
       window.removeEventListener("online", onOnline);
+      stopRealtime();
     };
   }, [orgId]);
 }
